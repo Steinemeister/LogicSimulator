@@ -1,7 +1,8 @@
-package logicSimulator.nodes;
+package logicSimulator.graph.nodes.module;
 
-import logicSimulator.Graph;
-import logicSimulator.Pin;
+import logicSimulator.graph.Graph;
+import logicSimulator.graph.nodes.Node;
+import logicSimulator.graph.nodes.Pin;
 
 public class ModuleOutputNode extends Node {
     public ModuleOutputNode(String name) {

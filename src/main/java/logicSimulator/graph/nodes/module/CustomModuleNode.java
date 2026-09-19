@@ -1,11 +1,8 @@
-package logicSimulator.nodes;
+package logicSimulator.graph.nodes.module;
 
-import logicSimulator.Edge;
-import logicSimulator.Graph;
-import logicSimulator.Pin;
-
-import java.util.ArrayList;
-import java.util.List;
+import logicSimulator.graph.Graph;
+import logicSimulator.graph.nodes.Node;
+import logicSimulator.graph.nodes.Pin;
 
 public class CustomModuleNode extends Node {
     // Jedes Modul kapselt nun sauber ein eigenes Graph-Objekt

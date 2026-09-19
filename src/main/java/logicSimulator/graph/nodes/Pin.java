@@ -1,6 +1,4 @@
-package logicSimulator;
-
-import logicSimulator.nodes.Node;
+package logicSimulator.graph.nodes;
 
 public class Pin {
     public enum State { LOW, HIGH }

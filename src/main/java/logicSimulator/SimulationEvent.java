@@ -1,5 +1,7 @@
 package logicSimulator;
 
+import logicSimulator.graph.nodes.Pin;
+
 public class SimulationEvent implements Comparable<SimulationEvent> {
     private final long tick;
     private final Pin pin;

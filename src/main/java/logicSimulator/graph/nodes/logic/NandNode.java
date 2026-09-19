@@ -1,10 +1,11 @@
-package logicSimulator.nodes;
+package logicSimulator.graph.nodes.logic;
 
-import logicSimulator.Graph;
-import logicSimulator.Pin;
+import logicSimulator.graph.Graph;
+import logicSimulator.graph.nodes.Node;
+import logicSimulator.graph.nodes.Pin;
 
-public class XnorNode extends Node {
-    public XnorNode(String name) {
+public class NandNode extends Node {
+    public NandNode(String name) {
         super(name);
         inputs.put("A", new Pin("A", this));
         inputs.put("B", new Pin("B", this));
@@ -16,8 +17,8 @@ public class XnorNode extends Node {
         boolean a = inputs.get("A").getState() == Pin.State.HIGH;
         boolean b = inputs.get("B").getState() == Pin.State.HIGH;
 
-        // XNOR ist wahr, wenn beide Eingänge gleich sind (00 oder 11)
-        Pin.State result = (a == b) ? Pin.State.HIGH : Pin.State.LOW;
+        // NAND ist das Gegenteil von AND
+        Pin.State result = !(a && b) ? Pin.State.HIGH : Pin.State.LOW;
         graph.queueEvent(outputs.get("Out"), result, 1);
     }
 }

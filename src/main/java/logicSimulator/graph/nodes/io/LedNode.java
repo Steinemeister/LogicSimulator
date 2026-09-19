@@ -1,7 +1,8 @@
-package logicSimulator.nodes;
+package logicSimulator.graph.nodes.io;
 
-import logicSimulator.Graph;
-import logicSimulator.Pin;
+import logicSimulator.graph.Graph;
+import logicSimulator.graph.nodes.Node;
+import logicSimulator.graph.nodes.Pin;
 
 public class LedNode extends Node {
     public LedNode(String name) {

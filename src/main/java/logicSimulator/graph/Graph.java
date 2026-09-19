@@ -1,6 +1,9 @@
-package logicSimulator;
+package logicSimulator.graph;
 
-import logicSimulator.nodes.Node;
+import logicSimulator.graph.nodes.JunctionNode;
+import logicSimulator.graph.nodes.Pin;
+import logicSimulator.SimulationEvent;
+import logicSimulator.graph.nodes.Node;
 
 import java.util.*;
 
@@ -80,6 +83,45 @@ public class Graph {
             node.update(this);
         }
         propagateSignals();
+    }
+
+    public JunctionNode splitEdgeWithJunction(Edge edgeToSplit, String junctionName) {
+        // 1. Ursprüngliche Verbindungspartner merken
+        Node originalSource = edgeToSplit.getSourceNode();
+        String originalSourcePin = edgeToSplit.getSourcePinName();
+        Node originalDest = edgeToSplit.getDestNode();
+        String originalDestPin = edgeToSplit.getDestPinName();
+
+        // 2. Altes Kabel entfernen
+        removeEdge(edgeToSplit);
+
+        // 3. Neue Junction erstellen und hinzufügen
+        JunctionNode newJunction = new JunctionNode(junctionName);
+        addNode(newJunction);
+
+        // 4. Die beiden neuen Kabelstücke erstellen und hinzufügen
+        Edge sourceToJunction = new Edge(originalSource, originalSourcePin, newJunction, "Point");
+        Edge junctionToDest = new Edge(newJunction, "Point", originalDest, originalDestPin);
+
+        addEdge(sourceToJunction);
+        addEdge(junctionToDest);
+
+        // 5. Signal-Zustand manuell und sofort durchdrücken:
+        // Wir holen den aktuellen Live-Zustand des Quell-Pins...
+        Pin.State currentSourceState = originalSource.getOutputs().get(originalSourcePin).getState();
+
+        // ...und zwingen das erste neue Kabel, diesen Zustand sofort als Event an die Junction zu senden.
+        Pin junctionPin = newJunction.getInputs().get("Point");
+        queueEvent(junctionPin, currentSourceState, 0);
+
+        // Simulation anwerfen, damit die Junction das Event verarbeitet und an Kabel 2 weiterreicht
+        propagateSignals();
+
+        return newJunction;
+    }
+
+    private void removeEdge(Edge edge) {
+        edges.remove(edge);
     }
 
     public List<Node> getNodes() { return nodes; }

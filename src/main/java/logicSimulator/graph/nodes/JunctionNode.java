@@ -1,7 +1,6 @@
-package logicSimulator.nodes;
+package logicSimulator.graph.nodes;
 
-import logicSimulator.Graph;
-import logicSimulator.Pin;
+import logicSimulator.graph.Graph;
 
 public class JunctionNode extends Node {
     public JunctionNode(String name) {

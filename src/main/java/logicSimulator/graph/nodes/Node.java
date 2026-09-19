@@ -1,7 +1,6 @@
-package logicSimulator.nodes;
+package logicSimulator.graph.nodes;
 
-import logicSimulator.Graph;
-import logicSimulator.Pin;
+import logicSimulator.graph.Graph;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

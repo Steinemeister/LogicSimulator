@@ -1,6 +1,7 @@
-package logicSimulator;
+package logicSimulator.graph;
 
-import logicSimulator.nodes.Node;
+import logicSimulator.graph.nodes.Pin;
+import logicSimulator.graph.nodes.Node;
 
 public class Edge {
     private final Node sourceNode;

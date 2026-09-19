@@ -1,7 +1,8 @@
-package logicSimulator.nodes;
+package logicSimulator.graph.nodes.logic;
 
-import logicSimulator.Graph;
-import logicSimulator.Pin;
+import logicSimulator.graph.Graph;
+import logicSimulator.graph.nodes.Node;
+import logicSimulator.graph.nodes.Pin;
 
 public class NotNode extends Node {
     public NotNode(String name) {

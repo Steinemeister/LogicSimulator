@@ -1,6 +1,11 @@
 package logicSimulator;
 
-import logicSimulator.nodes.*;
+import logicSimulator.graph.Edge;
+import logicSimulator.graph.Graph;
+import logicSimulator.graph.nodes.*;
+import logicSimulator.graph.nodes.io.ButtonNode;
+import logicSimulator.graph.nodes.io.LedNode;
+import logicSimulator.graph.nodes.logic.*;
 
 public class Main {
     public static void main(String[] args) {
