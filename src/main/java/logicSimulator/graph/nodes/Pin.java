@@ -1,8 +1,11 @@
 package logicSimulator.graph.nodes;
 
+import java.util.UUID;
+
 public class Pin {
     public enum State { LOW, HIGH }
 
+    private final UUID id;
     private final String name;
     private final Node owner;
     private State state = State.LOW;
@@ -11,6 +14,7 @@ public class Pin {
     private float relY;
 
     public Pin(String name, Node owner) {
+        this.id = UUID.randomUUID();
         this.name = name;
         this.owner = owner;
     }
@@ -28,6 +32,7 @@ public class Pin {
         return owner != null ? owner.getY() + relY : relY;
     }
 
+    public UUID getId() { return id; }
     public String getName() { return name; }
     public Node getOwner() { return owner; }
     public State getState() { return state; }

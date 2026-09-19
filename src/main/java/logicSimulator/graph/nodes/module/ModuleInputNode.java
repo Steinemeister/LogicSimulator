@@ -7,7 +7,7 @@ import logicSimulator.graph.nodes.Pin;
 public class ModuleInputNode extends Node {
     public ModuleInputNode(String name) {
         super(name);
-        outputs.put("Out", new Pin("Out", this));
+        outputs.add(new Pin("Out", this));
 
         calculateLayout(24f);
     }

@@ -7,11 +7,11 @@ import logicSimulator.graph.nodes.Pin;
 public class LedNode extends Node {
     public LedNode(String name) {
         super(name);
-        inputs.put("In", new Pin("In", this));
+        inputs.add(new Pin("In", this));
     }
 
     public boolean isOn() {
-        return inputs.get("In").getState() == Pin.State.HIGH;
+        return inputs.get(0).getState() == Pin.State.HIGH;
     }
 
     @Override

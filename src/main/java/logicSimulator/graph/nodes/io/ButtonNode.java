@@ -9,7 +9,7 @@ public class ButtonNode extends Node {
 
     public ButtonNode(String name) {
         super(name);
-        outputs.put("Out", new Pin("Out", this));
+        outputs.add(new Pin("Out", this));
     }
 
     public void toggle(Graph graph) {
@@ -17,7 +17,7 @@ public class ButtonNode extends Node {
         Pin.State newState = isPressed ? Pin.State.HIGH : Pin.State.LOW;
 
         // Wir werfen die Änderung des Buttons in die Queue
-        graph.queueEvent(outputs.get("Out"), newState, 0);
+        graph.queueEvent(outputs.get(0), newState, 0);
         graph.propagateSignals();
     }
 
@@ -26,6 +26,6 @@ public class ButtonNode extends Node {
     @Override
     public void update(Graph graph) {
         // Schreibt beim allerersten Start den aktuellen Zustand in die Queue
-        graph.queueEvent(outputs.get("Out"), isPressed ? Pin.State.HIGH : Pin.State.LOW, 0);
+        graph.queueEvent(outputs.get(0), isPressed ? Pin.State.HIGH : Pin.State.LOW, 0);
     }
 }

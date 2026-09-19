@@ -11,14 +11,14 @@ public class JunctionNode extends Node {
         Pin universalPin = new Pin("Point", this);
         universalPin.setRelativePosition(0f, 0f);
 
-        inputs.put("Point", universalPin);
-        outputs.put("Point", universalPin);
+        inputs.add(universalPin);
+        outputs.add(universalPin);
     }
 
     @Override
     public void update(Graph graph) {
-        Pin pointPin = inputs.get("Point");
-
-        graph.queueEvent(pointPin, pointPin.getState(), 0);
+//        Pin pointPin = inputs.get(0);
+//
+//        graph.queueEvent(pointPin, pointPin.getState(), 0);
     }
 }

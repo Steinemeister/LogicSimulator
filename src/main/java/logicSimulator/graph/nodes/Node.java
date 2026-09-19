@@ -2,13 +2,14 @@ package logicSimulator.graph.nodes;
 
 import logicSimulator.graph.Graph;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 
 public abstract class Node {
     private final String name;
-    protected final Map<String, Pin> inputs = new LinkedHashMap<>();
-    protected final Map<String, Pin> outputs = new LinkedHashMap<>();
+
+    // Pins werden jetzt in Listen statt fehleranfälligen Maps gespeichert
+    protected final List<Pin> inputs = new ArrayList<>();
+    protected final List<Pin> outputs = new ArrayList<>();
 
     protected float x;
     protected float y;
@@ -21,48 +22,40 @@ public abstract class Node {
     }
 
     public void calculateLayout(float pinDistance) {
-        int inputCount = inputs.size();
-        int outputCount = outputs.size();
-
-        int maxPins = Math.max(inputCount, outputCount);
-
+        int maxPins = Math.max(inputs.size(), outputs.size());
         if (maxPins == 0) {
             this.height = pinDistance;
             return;
         }
-
         this.height = maxPins * pinDistance;
 
-        int i = 0;
-        for (Pin pin : inputs.values()) {
-            float relY = (i * pinDistance) + (pinDistance / 2f);
-            pin.setRelativePosition(0f, relY);
-            i++;
+        for (int i = 0; i < inputs.size(); i++) {
+            inputs.get(i).setRelativePosition(0f, (i * pinDistance) + (pinDistance / 2f));
         }
-
-        int j = 0;
-        for (Pin pin : outputs.values()) {
-            float relY = (j * pinDistance) + (pinDistance / 2f);
-            pin.setRelativePosition(this.width, relY);
-            j++;
+        for (int i = 0; i < outputs.size(); i++) {
+            outputs.get(i).setRelativePosition(this.width, (i * pinDistance) + (pinDistance / 2f));
         }
     }
 
-    public Pin getPinAt(float mx, float my, float radius) {
-        for (Pin pin : inputs.values()) {
-            float dx = pin.getAbsoluteX() - mx;
-            float dy = pin.getAbsoluteY() - my;
-            if ((dx * dx + dy * dy) <= (radius * radius)) {
-                return pin;
-            }
-        }
+    /**
+     * Sucht einen Pin in diesem Knoten anhand seiner UUID.
+     */
+    public Pin findPinById(UUID pinId) {
+        for (Pin p : inputs)  if (p.getId().equals(pinId)) return p;
+        for (Pin p : outputs) if (p.getId().equals(pinId)) return p;
+        return null;
+    }
 
-        for (Pin pin : outputs.values()) {
+    public Pin getPinAt(float mx, float my, float radius) {
+        for (Pin pin : inputs) {
             float dx = pin.getAbsoluteX() - mx;
             float dy = pin.getAbsoluteY() - my;
-            if ((dx * dx + dy * dy) <= (radius * radius)) {
-                return pin;
-            }
+            if ((dx * dx + dy * dy) <= (radius * radius)) return pin;
+        }
+        for (Pin pin : outputs) {
+            float dx = pin.getAbsoluteX() - mx;
+            float dy = pin.getAbsoluteY() - my;
+            if ((dx * dx + dy * dy) <= (radius * radius)) return pin;
         }
         return null;
     }
@@ -72,14 +65,10 @@ public abstract class Node {
     public float getY() { return y; }
     public float getWidth() { return width; }
     public float getHeight() { return height; }
-
-    public boolean contains(float mx, float my) {
-        return mx >= x && mx <= x + width && my >= y && my <= y + height;
-    }
-
+    public boolean contains(float mx, float my) { return mx >= x && mx <= x + width && my >= y && my <= y + height; }
     public String getName() { return name; }
-    public Map<String, Pin> getInputs() { return inputs; }
-    public Map<String, Pin> getOutputs() { return outputs; }
+    public List<Pin> getInputs() { return inputs; }
+    public List<Pin> getOutputs() { return outputs; }
 
     public abstract void update(Graph graph);
 }

@@ -10,12 +10,20 @@ import java.util.*;
 public class Graph {
     private final List<Node> nodes = new ArrayList<>();
     private final List<Edge> edges = new ArrayList<>();
-
     private final PriorityQueue<SimulationEvent> eventQueue = new PriorityQueue<>();
     private long currentTick = 0;
 
     public void addNode(Node node) { nodes.add(node); }
     public void addEdge(Edge edge) { edges.add(edge); }
+    public void removeEdge(Edge edge) { edges.remove(edge); }
+
+    public Pin findPinGlobally(UUID pinId) {
+        for (Node node : nodes) {
+            Pin p = node.findPinById(pinId);
+            if (p != null) return p;
+        }
+        return null;
+    }
 
     public void queueEvent(Pin pin, Pin.State newState, long delay) {
         eventQueue.add(new SimulationEvent(currentTick + delay, pin, newState));
@@ -24,11 +32,12 @@ public class Graph {
     public boolean step() {
         if (eventQueue.isEmpty()) return false;
 
-        // Falls Events in der Zukunft liegen, spulen wir die Zeit vor
+        // Wenn das nächste Event in der Zukunft liegt, spulen wir die Zeit vor
         if (eventQueue.peek().getTick() > currentTick) {
             currentTick = eventQueue.peek().getTick();
         }
 
+        // Sammle ALLE Events für den aktuellen Tick
         List<SimulationEvent> currentEvents = new ArrayList<>();
         while (!eventQueue.isEmpty() && eventQueue.peek().getTick() <= currentTick) {
             currentEvents.add(eventQueue.poll());
@@ -36,27 +45,15 @@ public class Graph {
 
         List<Node> nodesToUpdate = new ArrayList<>();
 
+        // Verarbeite die Events
         for (SimulationEvent event : currentEvents) {
             Pin pin = event.getPin();
             if (pin.getState() != event.getNewState()) {
-                pin.setState(event.getNewState());
-
-                if (pin.getOwner() != null && !nodesToUpdate.contains(pin.getOwner())) {
-                    nodesToUpdate.add(pin.getOwner());
-                }
-
-                for (Edge edge : edges) {
-                    if (edge.getSourceNode() == pin.getOwner() && edge.getSourcePinName().equals(pin.getName())) {
-                        Pin destPin = edge.getDestNode().getInputs().get(edge.getDestPinName());
-                        if (destPin != null) {
-                            queueEvent(destPin, pin.getState(), 0);
-                        }
-                    }
-                }
+                triggerPinChange(pin, event.getNewState(), nodesToUpdate);
             }
         }
 
-        // 2. Aktivierte Knoten ihre Logik berechnen lassen
+        // Berechne die Logik-Knoten (AND, NOT, CustomModule)
         for (Node node : nodesToUpdate) {
             node.update(this);
         }
@@ -64,14 +61,46 @@ public class Graph {
         return !eventQueue.isEmpty();
     }
 
-    /**
-     * Simuliert den Graphen so lange, bis keine Events mehr aktiv sind (Ruhezustand).
-     */
+    private void triggerPinChange(Pin pin, Pin.State newState, List<Node> nodesToUpdate) {
+        pin.setState(newState);
+
+        // Wenn es ein Gatter-Eingang ist, muss das Gatter rechnen
+        if (pin.getOwner() != null && !(pin.getOwner() instanceof JunctionNode)) {
+            if (!nodesToUpdate.contains(pin.getOwner())) {
+                nodesToUpdate.add(pin.getOwner());
+            }
+        }
+
+        // Signal über Kabel weiterleiten
+        for (Edge edge : edges) {
+            if (edge.getSourcePinId().equals(pin.getId())) {
+                Pin destPin = findPinGlobally(edge.getDestPinId());
+                if (destPin != null) {
+                    if (destPin.getOwner() instanceof JunctionNode) {
+                        // Junctions leiten das Signal verzögerungsfrei (rekursiv) weiter
+                        if (destPin.getState() != newState) {
+                            triggerPinChange(destPin, newState, nodesToUpdate);
+                        }
+                    } else {
+                        // Normale Gatter erhalten ein Event für JETZT (delay = 0)
+                        queueEvent(destPin, newState, 0);
+                    }
+                }
+            }
+        }
+    }
+
     public void propagateSignals() {
-        int maxSafetyLoops = 1000;
-        // Solange Events da sind ODER noch Events für den exakt aktuellen Tick generiert wurden
+        int maxSafetyLoops = 5000;
+        // WICHTIG: Wir simulieren so lange, wie Events in der Queue existieren.
+        // Erst wenn step() false zurückgibt UND die Queue wirklich leer ist, stoppen wir.
         while (!eventQueue.isEmpty() && maxSafetyLoops > 0) {
             step();
+            // Erhöhe den Tick erst, wenn für den aktuellen Tick wirklich alle
+            // Kettenreaktionen (0-Tick-Events) abgearbeitet wurden!
+            if (!eventQueue.isEmpty() && eventQueue.peek().getTick() > currentTick) {
+                currentTick++;
+            }
             maxSafetyLoops--;
         }
     }
@@ -86,74 +115,36 @@ public class Graph {
     }
 
     public JunctionNode splitEdgeWithJunction(Edge edgeToSplit, String junctionName) {
-        // 1. Ursprüngliche Verbindungspartner merken
-        Node originalSource = edgeToSplit.getSourceNode();
-        String originalSourcePin = edgeToSplit.getSourcePinName();
-        Node originalDest = edgeToSplit.getDestNode();
-        String originalDestPin = edgeToSplit.getDestPinName();
+        Pin originalSrc = findPinGlobally(edgeToSplit.getSourcePinId());
+        Pin originalDest = findPinGlobally(edgeToSplit.getDestPinId());
 
-        // 2. Altes Kabel entfernen
+        // 1. Altes Kabel entfernen
         removeEdge(edgeToSplit);
 
-        // 3. Neue Junction erstellen und hinzufügen
+        // 2. Neue Junction erstellen und hinzufügen
         JunctionNode newJunction = new JunctionNode(junctionName);
         addNode(newJunction);
 
-        // 4. Die beiden neuen Kabelstücke erstellen und hinzufügen
-        Edge sourceToJunction = new Edge(originalSource, originalSourcePin, newJunction, "Point");
-        Edge junctionToDest = new Edge(newJunction, "Point", originalDest, originalDestPin);
+        Pin junctionPin = newJunction.getInputs().get(0);
 
-        addEdge(sourceToJunction);
-        addEdge(junctionToDest);
+        // 3. Die zwei neuen Kabelsegmente registrieren
+        addEdge(new Edge(originalSrc, junctionPin));
+        addEdge(new Edge(junctionPin, originalDest));
 
-        // 5. Signal-Zustand manuell und sofort durchdrücken:
-        // Wir holen den aktuellen Live-Zustand des Quell-Pins...
-        Pin.State currentSourceState = originalSource.getOutputs().get(originalSourcePin).getState();
+        // 4. UNFEHLBARER SIGNAL-INJEKTOR:
+        // Wir holen den aktuellen Live-Zustand des Modul-Ausgangs (der ist HIGH)
+        Pin.State currentSourceState = originalSrc.getState();
 
-        // ...und zwingen das erste neue Kabel, diesen Zustand sofort als Event an die Junction zu senden.
-        Pin junctionPin = newJunction.getInputs().get("Point");
+        // Wir zwingen das Event-System, diesen Zustand als neues Event direkt für den Junction-Pin einzutragen.
+        // Da der Junction-Pin frisch erstellt wurde, steht er auf LOW. Der Wechsel LOW -> HIGH wird GARANTIERT getriggert!
         queueEvent(junctionPin, currentSourceState, 0);
 
-        // Simulation anwerfen, damit die Junction das Event verarbeitet und an Kabel 2 weiterreicht
+        // 5. Die Simulation pulsieren lassen, damit die Junction das Signal verarbeitet
         propagateSignals();
 
         return newJunction;
     }
 
-    public Node getNodeAt(float mx, float my) {
-        for (int i = nodes.size() - 1; i >= 0; i--) {
-            Node node = nodes.get(i);
-            if (node.contains(mx, my)) {
-                return node;
-            }
-        }
-        return null;
-    }
-
-    public Pin getAnyPinAt(float mx, float my, float radius) {
-        for (Node node : nodes) {
-            Pin pin = node.getPinAt(mx, my, radius);
-            if (pin != null) {
-                return pin;
-            }
-        }
-        return null;
-    }
-
-    public Edge getEdgeAt(float mx, float my, float tolerance) {
-        for (Edge edge : edges) {
-            if (edge.isPointNearLine(mx, my, tolerance)) {
-                return edge;
-            }
-        }
-        return null;
-    }
-
-    private void removeEdge(Edge edge) {
-        edges.remove(edge);
-    }
-
     public List<Node> getNodes() { return nodes; }
     public List<Edge> getEdges() { return edges; }
-    public long getCurrentTick() { return currentTick; }
 }
