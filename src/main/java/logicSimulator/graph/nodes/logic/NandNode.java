@@ -10,6 +10,8 @@ public class NandNode extends Node {
         inputs.put("A", new Pin("A", this));
         inputs.put("B", new Pin("B", this));
         outputs.put("Out", new Pin("Out", this));
+
+        calculateLayout(24f);
     }
 
     @Override

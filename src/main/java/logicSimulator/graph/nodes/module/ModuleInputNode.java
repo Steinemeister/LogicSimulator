@@ -8,6 +8,8 @@ public class ModuleInputNode extends Node {
     public ModuleInputNode(String name) {
         super(name);
         outputs.put("Out", new Pin("Out", this));
+
+        calculateLayout(24f);
     }
 
     @Override public void update(Graph graph) {}

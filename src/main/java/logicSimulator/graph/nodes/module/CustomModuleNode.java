@@ -16,12 +16,16 @@ public class CustomModuleNode extends Node {
         inputs.put(pinName, new Pin(pinName, this));
         // Registriere den passenden Schnittstellen-Knoten im internen Graphen
         internalGraph.addNode(new ModuleInputNode(pinName));
+
+        calculateLayout(24f);
     }
 
     public void addExternalOutput(String pinName) {
         outputs.put(pinName, new Pin(pinName, this));
         // Registriere den passenden Schnittstellen-Knoten im internen Graphen
         internalGraph.addNode(new ModuleOutputNode(pinName));
+
+        calculateLayout(24f);
     }
 
     // Zugriff auf den internen Graphen, um von außen Gatter/Kabel hinzuzufügen

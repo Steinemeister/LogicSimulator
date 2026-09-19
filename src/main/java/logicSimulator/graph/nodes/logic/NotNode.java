@@ -9,6 +9,8 @@ public class NotNode extends Node {
         super(name);
         inputs.put("In", new Pin("In", this));
         outputs.put("Out", new Pin("Out", this));
+
+        calculateLayout(24f);
     }
 
     @Override

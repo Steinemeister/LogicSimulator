@@ -7,9 +7,12 @@ import logicSimulator.graph.nodes.Pin;
 public class AndNode extends Node {
     public AndNode(String name) {
         super(name);
+
         inputs.put("A", new Pin("A", this));
         inputs.put("B", new Pin("B", this));
         outputs.put("Out", new Pin("Out", this));
+
+        calculateLayout(24f);
     }
 
     @Override
