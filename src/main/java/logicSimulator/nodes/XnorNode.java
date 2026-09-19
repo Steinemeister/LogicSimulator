@@ -1,0 +1,23 @@
+package logicSimulator.nodes;
+
+import logicSimulator.Graph;
+import logicSimulator.Pin;
+
+public class XnorNode extends Node {
+    public XnorNode(String name) {
+        super(name);
+        inputs.put("A", new Pin("A", this));
+        inputs.put("B", new Pin("B", this));
+        outputs.put("Out", new Pin("Out", this));
+    }
+
+    @Override
+    public void update(Graph graph) {
+        boolean a = inputs.get("A").getState() == Pin.State.HIGH;
+        boolean b = inputs.get("B").getState() == Pin.State.HIGH;
+
+        // XNOR ist wahr, wenn beide Eingänge gleich sind (00 oder 11)
+        Pin.State result = (a == b) ? Pin.State.HIGH : Pin.State.LOW;
+        graph.queueEvent(outputs.get("Out"), result, 1);
+    }
+}

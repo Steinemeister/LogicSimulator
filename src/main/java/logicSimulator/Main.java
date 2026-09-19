@@ -4,7 +4,70 @@ import logicSimulator.nodes.*;
 
 public class Main {
     public static void main(String[] args) {
-        testJunction();
+        testNativeGates();
+    }
+
+    public static void testNativeGates() {
+        Graph workspace = new Graph();
+
+        // Zwei Buttons als globale Eingänge
+        ButtonNode btnA = new ButtonNode("BtnA");
+        ButtonNode btnB = new ButtonNode("BtnB");
+
+        // Unsere neuen nativen Hochleistungskomponenten
+        AndNode andNode = new AndNode("AND");
+        NandNode nandNode = new NandNode("NAND");
+        XorNode xorNode = new XorNode("XOR");
+        XnorNode xnorNode = new XnorNode("XNOR");
+
+        workspace.addNode(btnA);
+        workspace.addNode(btnB);
+        workspace.addNode(andNode);
+        workspace.addNode(nandNode);
+        workspace.addNode(xorNode);
+        workspace.addNode(xnorNode);
+
+        // Alle Gatter mit den zwei Buttons verbinden
+        workspace.addEdge(new Edge(btnA, "Out", andNode, "A"));
+        workspace.addEdge(new Edge(btnB, "Out", andNode, "B"));
+
+        workspace.addEdge(new Edge(btnA, "Out", nandNode, "A"));
+        workspace.addEdge(new Edge(btnB, "Out", nandNode, "B"));
+
+        workspace.addEdge(new Edge(btnA, "Out", xorNode, "A"));
+        workspace.addEdge(new Edge(btnB, "Out", xorNode, "B"));
+
+        workspace.addEdge(new Edge(btnA, "Out", xnorNode, "A"));
+        workspace.addEdge(new Edge(btnB, "Out", xnorNode, "B"));
+
+        // Kombinationen durchtesten
+        boolean[] inputStates = {false, true};
+
+        workspace.initializeSimulation();
+
+        System.out.println("--- Teste native Logik-Knoten ---");
+        System.out.println("A \t B \t| AND \t NAND \t XOR \t XNOR");
+        System.out.println("----------------------------------------------");
+
+        for (boolean a : inputStates) {
+            for (boolean b : inputStates) {
+                // Knöpfe setzen (Simuliert das Klicken)
+                if (btnA.isPressed() != a) btnA.toggle(workspace);
+                if (btnB.isPressed() != b) btnB.toggle(workspace);
+
+                // Simulation einmal komplett durchlaufen lassen
+                workspace.propagateSignals();
+
+                // Zustände auslesen
+                String andRes  = andNode.getOutputs().get("Out").getState().toString();
+                String nandRes = nandNode.getOutputs().get("Out").getState().toString();
+                String xorRes  = xorNode.getOutputs().get("Out").getState().toString();
+                String xnorRes = xnorNode.getOutputs().get("Out").getState().toString();
+
+                System.out.printf("%s \t %s \t| %s \t %s \t %s \t %s\n",
+                        a ? "1" : "0", b ? "1" : "0", andRes, nandRes, xorRes, xnorRes);
+            }
+        }
     }
 
     public static void testJunction() {
