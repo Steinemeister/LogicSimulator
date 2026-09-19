@@ -14,17 +14,10 @@ public class Graph {
     public void addNode(Node node) { nodes.add(node); }
     public void addEdge(Edge edge) { edges.add(edge); }
 
-    /**
-     * Fügt ein neues Event in die Zukunft der Simulation ein.
-     */
     public void queueEvent(Pin pin, Pin.State newState, long delay) {
         eventQueue.add(new SimulationEvent(currentTick + delay, pin, newState));
     }
 
-    /**
-     * Arbeitet ALLE Events ab, die für den AKTUELLEN Tick anstehen.
-     * Gibt true zurück, wenn noch Events für die Zukunft in der Queue sind.
-     */
     public boolean step() {
         if (eventQueue.isEmpty()) return false;
 
@@ -38,7 +31,6 @@ public class Graph {
             currentEvents.add(eventQueue.poll());
         }
 
-        // 1. Zustände ändern und betroffene Nachfolger finden
         List<Node> nodesToUpdate = new ArrayList<>();
 
         for (SimulationEvent event : currentEvents) {
@@ -46,22 +38,15 @@ public class Graph {
             if (pin.getState() != event.getNewState()) {
                 pin.setState(event.getNewState());
 
-                // A) Wenn es ein Eingang eines Knotens ist, muss der Knoten rechnen
                 if (pin.getOwner() != null && !nodesToUpdate.contains(pin.getOwner())) {
                     nodesToUpdate.add(pin.getOwner());
                 }
 
-                // B) Wenn es ein Ausgang ist, leiten wir das Signal über alle passenden Kabel weiter
                 for (Edge edge : edges) {
-                    if (edge.getSourceNode().getOutputs().containsValue(pin)) {
-                        // Finde den exakten Ausgangs-Pin-Namen für das Kabel
-                        String srcPinName = edge.getSourcePinName();
-                        if (edge.getSourceNode().getOutputs().get(srcPinName) == pin) {
-                            Pin destPin = edge.getDestNode().getInputs().get(edge.getDestPinName());
-                            if (destPin != null) {
-                                // Kabel überträgt das Signal ohne Verzögerung (Delay = 0)
-                                queueEvent(destPin, pin.getState(), 0);
-                            }
+                    if (edge.getSourceNode() == pin.getOwner() && edge.getSourcePinName().equals(pin.getName())) {
+                        Pin destPin = edge.getDestNode().getInputs().get(edge.getDestPinName());
+                        if (destPin != null) {
+                            queueEvent(destPin, pin.getState(), 0);
                         }
                     }
                 }
@@ -91,7 +76,6 @@ public class Graph {
     public void initializeSimulation() {
         currentTick = 0;
         eventQueue.clear();
-        // Lass jeden Knoten einmal seinen aktuellen Startzustand in die Queue werfen
         for (Node node : nodes) {
             node.update(this);
         }
