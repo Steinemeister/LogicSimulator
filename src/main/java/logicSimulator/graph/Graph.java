@@ -120,6 +120,35 @@ public class Graph {
         return newJunction;
     }
 
+    public Node getNodeAt(float mx, float my) {
+        for (int i = nodes.size() - 1; i >= 0; i--) {
+            Node node = nodes.get(i);
+            if (node.contains(mx, my)) {
+                return node;
+            }
+        }
+        return null;
+    }
+
+    public Pin getAnyPinAt(float mx, float my, float radius) {
+        for (Node node : nodes) {
+            Pin pin = node.getPinAt(mx, my, radius);
+            if (pin != null) {
+                return pin;
+            }
+        }
+        return null;
+    }
+
+    public Edge getEdgeAt(float mx, float my, float tolerance) {
+        for (Edge edge : edges) {
+            if (edge.isPointNearLine(mx, my, tolerance)) {
+                return edge;
+            }
+        }
+        return null;
+    }
+
     private void removeEdge(Edge edge) {
         edges.remove(edge);
     }

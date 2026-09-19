@@ -48,6 +48,25 @@ public abstract class Node {
         }
     }
 
+    public Pin getPinAt(float mx, float my, float radius) {
+        for (Pin pin : inputs.values()) {
+            float dx = pin.getAbsoluteX() - mx;
+            float dy = pin.getAbsoluteY() - my;
+            if ((dx * dx + dy * dy) <= (radius * radius)) {
+                return pin;
+            }
+        }
+
+        for (Pin pin : outputs.values()) {
+            float dx = pin.getAbsoluteX() - mx;
+            float dy = pin.getAbsoluteY() - my;
+            if ((dx * dx + dy * dy) <= (radius * radius)) {
+                return pin;
+            }
+        }
+        return null;
+    }
+
     public void setPosition(float x, float y) { this.x = x; this.y = y; }
     public float getX() { return x; }
     public float getY() { return y; }
