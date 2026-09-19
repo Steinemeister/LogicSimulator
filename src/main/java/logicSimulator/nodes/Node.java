@@ -1,5 +1,6 @@
 package logicSimulator.nodes;
 
+import logicSimulator.Graph;
 import logicSimulator.Pin;
 
 import java.util.LinkedHashMap;
@@ -18,5 +19,5 @@ public abstract class Node {
     public Map<String, Pin> getInputs() { return inputs; }
     public Map<String, Pin> getOutputs() { return outputs; }
 
-    public abstract void update();
+    public abstract void update(Graph graph);
 }

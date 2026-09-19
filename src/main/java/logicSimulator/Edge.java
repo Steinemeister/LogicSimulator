@@ -15,15 +15,18 @@ public class Edge {
         this.destPinName = destPinName;
     }
 
-    public void transmitSignal() {
+    public void transmitSignal(Graph graph) {
         Pin sourcePin = sourceNode.getOutputs().get(sourcePinName);
         Pin destPin = destNode.getInputs().get(destPinName);
 
         if (sourcePin != null && destPin != null) {
-            destPin.setState(sourcePin.getState());
+            // Ein Kabel leitet das Signal sofort weiter (Delay = 0)
+            graph.queueEvent(destPin, sourcePin.getState(), 0);
         }
     }
 
     public Node getSourceNode() { return sourceNode; }
+    public String getSourcePinName() { return sourcePinName; }
     public Node getDestNode() { return destNode; }
+    public String getDestPinName() { return destPinName; }
 }

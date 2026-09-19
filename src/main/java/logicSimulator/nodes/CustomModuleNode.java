@@ -16,13 +16,13 @@ public class CustomModuleNode extends Node {
     }
 
     public void addExternalInput(String pinName) {
-        inputs.put(pinName, new Pin(pinName));
+        inputs.put(pinName, new Pin(pinName, this));
         // Registriere den passenden Schnittstellen-Knoten im internen Graphen
         internalGraph.addNode(new ModuleInputNode(pinName));
     }
 
     public void addExternalOutput(String pinName) {
-        outputs.put(pinName, new Pin(pinName));
+        outputs.put(pinName, new Pin(pinName, this));
         // Registriere den passenden Schnittstellen-Knoten im internen Graphen
         internalGraph.addNode(new ModuleOutputNode(pinName));
     }
@@ -33,7 +33,7 @@ public class CustomModuleNode extends Node {
     }
 
     @Override
-    public void update() {
+    public void update(Graph graph) {
         // 1. Äußere Inputs in das Innenleben einspeisen
         for (String pinName : inputs.keySet()) {
             Pin externalInput = inputs.get(pinName);
@@ -44,7 +44,7 @@ public class CustomModuleNode extends Node {
         }
 
         // 2. Den internen Graphen einen Schritt simulieren lassen
-        internalGraph.step();
+        internalGraph.propagateSignals();
 
         // 3. Ergebnisse aus dem Innenleben an die äußeren Outputs übergeben
         for (String pinName : outputs.keySet()) {

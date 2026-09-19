@@ -1,5 +1,6 @@
 package logicSimulator.nodes;
 
+import logicSimulator.Graph;
 import logicSimulator.Pin;
 
 public class JunctionNode extends Node {
@@ -7,14 +8,14 @@ public class JunctionNode extends Node {
         super(name);
         // Dieser Knoten nimmt mehrere Leitungen auf
         for (int i = 0; i < inputCount; i++) {
-            inputs.put("In_" + i, new Pin("In_" + i));
+            inputs.put("In_" + i, new Pin("In_" + i, this));
         }
         // ... und führt sie zu einem Ausgang zusammen
-        outputs.put("Out", new Pin("Out"));
+        outputs.put("Out", new Pin("Out", this));
     }
 
     @Override
-    public void update() {
+    public void update(Graph graph) {
         Pin out = outputs.get("Out");
 
         // Wenn mindestens ein Eingang HIGH ist, wird der Ausgang HIGH (Wired-OR)
@@ -25,7 +26,8 @@ public class JunctionNode extends Node {
                 break;
             }
         }
+        Pin.State targetState = anyHigh ? Pin.State.HIGH : Pin.State.LOW;
 
-        out.setState(anyHigh ? Pin.State.HIGH : Pin.State.LOW);
+        graph.queueEvent(out, targetState, 1);
     }
 }
