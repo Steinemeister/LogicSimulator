@@ -92,17 +92,55 @@ public class Graph {
                     if (e.getSourcePinId().equals(junctionUniversalPin.getId())) outgoingEdge = e;
                 }
 
+                if (incomingEdge != null && outgoingEdge != null) {
+                    Pin realSrc = findPinGlobally(incomingEdge.getSourcePinId());
+                    Pin realDest = findPinGlobally(incomingEdge.getDestPinId()); // (Das ist der Pin der Junction selbst)
+                    Pin realNextDest = findPinGlobally(outgoingEdge.getDestPinId());
+
+                    if (realSrc != null && realNextDest != null) {
+                        float srcX = realSrc.getAbsoluteX();
+                        float srcY = realSrc.getAbsoluteY();
+                        float destX = realNextDest.getAbsoluteX();
+                        float destY = realNextDest.getAbsoluteY();
+
+                        // =========================================================
+                        // NEU: BEGRADIGUNGS-CHECK (Verschmelzen zu einer langen Edge)
+                        // =========================================================
+                        // Fall A: Beide Segmente verlaufen schnurgerade horizontal auf derselben Höhe
+                        // Fall B: Beide Segmente verlaufen schnurgerade vertikal auf derselben Breite
+                        boolean isStraightHorizontal = (srcY == currentY && currentY == destY);
+                        boolean isStraightVertical   = (srcX == currentX && currentX == destX);
+
+                        if (isStraightHorizontal || isStraightVertical) {
+                            // Wir löschen die Junction und die beiden Teilstücke komplett
+                            nodes.remove(node);
+                            edges.remove(incomingEdge);
+                            edges.remove(outgoingEdge);
+
+                            // Wir ziehen EIN EINZIGES, langes, ununterbrochenes Kabel!
+                            edges.add(new Edge(realSrc, realNextDest));
+
+                            System.out.println("[Engine] Leitung erfolgreich begradigt. Knickpunkt entfernt.");
+
+                            // Kaskade bei den neuen Endpartnern fortsetzen
+                            cleanupUselessConnectedNodes(realSrc.getOwner());
+                            cleanupUselessConnectedNodes(realNextDest.getOwner());
+                            return; // Vorgang abgeschlossen!
+                        }
+                    }
+                }
+
+                // --- Standard-Verhalten (Wenn es ein echter 90-Grad-Knick ist): ---
                 // Lösche die alte Junction lautlos
                 nodes.remove(node);
                 if (incomingEdge != null) edges.remove(incomingEdge);
                 if (outgoingEdge != null) edges.remove(outgoingEdge);
 
-                // Erstelle die neue CornerNode
+                // Erstelle die normale CornerNode für den echten Knick
                 CornerNode newCorner = new CornerNode("CornerGen_" + System.currentTimeMillis());
                 newCorner.setPosition(currentX, currentY);
                 nodes.add(newCorner);
 
-                // Verdrahte die offenen Kabelsegmente mit der neuen Corner neu
                 if (incomingEdge != null) {
                     Pin realSrc = findPinGlobally(incomingEdge.getSourcePinId());
                     if (realSrc != null) edges.add(new Edge(realSrc, newCorner.getInputs().get(0)));
@@ -113,10 +151,6 @@ public class Graph {
                 }
 
                 System.out.println("[Engine] Junction wurde automatisch zu einer Corner vereinfacht.");
-
-                // FIX: Da diese neue Corner eventuell ebenfalls sofort gelöscht werden könnte
-                // (z.B. weil einer ihrer neuen Nachbarn in der Luft hängt), jagen wir sie DIREKT
-                // noch einmal in die Kaskade!
                 cleanupUselessConnectedNodes(newCorner);
             }
         }
