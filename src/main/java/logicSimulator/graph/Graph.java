@@ -115,11 +115,24 @@ public class Graph {
     }
 
     public Node getNodeAt(float mx, float my) {
-        // Rückwärts durchlaufen, damit Gatter im Vordergrund zuerst gegriffen werden
+        // Rückwärts durchlaufen für die korrekte Tiefenreihenfolge (Vordergrund zuerst)
         for (int i = nodes.size() - 1; i >= 0; i--) {
             Node node = nodes.get(i);
-            if (node.contains(mx, my)) {
-                return node;
+
+            if (node instanceof JunctionNode) {
+                // Junctions haben eine Größe von 0x0. Wir prüfen den Abstand zum Pin.
+                Pin p = node.getInputs().get(0);
+                float dx = p.getAbsoluteX() - mx;
+                float dy = p.getAbsoluteY() - my;
+                float clickRadius = 10f; // 10 Pixel Toleranz zum Greifen der Junction
+                if ((dx * dx + dy * dy) <= (clickRadius * clickRadius)) {
+                    return node;
+                }
+            } else {
+                // Normale Gatter über die Box prüfen
+                if (node.contains(mx, my)) {
+                    return node;
+                }
             }
         }
         return null;

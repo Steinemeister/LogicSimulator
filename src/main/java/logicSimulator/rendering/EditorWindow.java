@@ -12,31 +12,37 @@ import logicSimulator.graph.nodes.Pin;
 
 public class EditorWindow extends Application {
     private final Graph logicGraph;
-
     private Node draggingNode = null;
+
+    // NEU: Wir merken uns den genauen Offset zwischen dem Gatter-Ursprung (X/Y)
+    // und der genauen Position, an der die Maus das Gatter angeklickt hat.
+    private float mouseOffsetX = 0f;
+    private float mouseOffsetY = 0f;
+
+    private final float gridSize = 20f;
 
     public EditorWindow(Graph logicGraph) {
         this.logicGraph = logicGraph;
     }
 
-    /**
-     * Konfiguriert die Fenster-Eigenschaften (Titel, Größe) vor dem Start.
-     */
     @Override
     protected void configure(Configuration config) {
-        config.setTitle("Modular Logic Simulator");
+        config.setTitle("Modular Logic Simulator with Fixed Grid");
         config.setWidth(1280);
         config.setHeight(720);
     }
 
-    /**
-     * Die Kern-Render-Schleife von ImGui.
-     * Alles, was hier drin steht, wird jeden Frame neu gezeichnet (Immediate Mode).
-     */
+    private float snap(float value) {
+        return Math.round(value / gridSize) * gridSize;
+    }
+
     @Override
     public void process() {
+        float windowWidth = ImGui.getIO().getDisplaySizeX();
+        float windowHeight = ImGui.getIO().getDisplaySizeY();
+
         ImGui.setNextWindowPos(0, 0);
-        ImGui.setNextWindowSize(ImGui.getIO().getDisplaySizeX(), ImGui.getIO().getDisplaySizeY());
+        ImGui.setNextWindowSize(windowWidth, windowHeight);
 
         int windowFlags = imgui.flag.ImGuiWindowFlags.NoTitleBar
                 | imgui.flag.ImGuiWindowFlags.NoResize
@@ -45,45 +51,61 @@ public class EditorWindow extends Application {
                 | imgui.flag.ImGuiWindowFlags.NoBringToFrontOnFocus;
 
         ImGui.begin("CanvasWindow", windowFlags);
+        ImDrawList drawList = ImGui.getWindowDrawList();
+
+        // Farben & Raster zeichnen (Unverändert)
+        int colorNodeBg     = ImGui.getColorU32(0.15f, 0.15f, 0.15f, 1.0f);
+        int colorNodeBorder = ImGui.getColorU32(0.40f, 0.40f, 0.40f, 1.0f);
+        int colorText       = ImGui.getColorU32(1.0f, 1.0f, 1.0f, 1.0f);
+        int colorPinLow     = ImGui.getColorU32(0.3f, 0.3f, 0.3f, 1.0f);
+        int colorPinHigh    = ImGui.getColorU32(0.0f, 1.0f, 0.0f, 1.0f);
+        int colorGridDot    = ImGui.getColorU32(0.25f, 0.25f, 0.25f, 0.5f);
+
+        for (float gx = 0; gx < windowWidth; gx += gridSize) {
+            for (float gy = 0; gy < windowHeight; gy += gridSize) {
+                drawList.addCircleFilled(gx, gy, 1.0f, colorGridDot);
+            }
+        }
 
         // =================================================================
-// MAUS-INTERAKTIONEN (Verschieben & Splitten)
-// =================================================================
+        // KORRIGIERTE MAUS-INTERAKTIONEN (OFFSET-BASIERT)
+        // =================================================================
         float mouseX = ImGui.getMousePosX();
         float mouseY = ImGui.getMousePosY();
 
-// FALL 1: SHIFT-KLICK -> Kabel splitten
+        // 1. Kabel splitten via Shift-Klick
         if (ImGui.getIO().getKeyShift() && ImGui.isMouseClicked(0)) {
-            // Toleranz von 6 Pixeln, um das Kabel mit der Maus gut zu treffen
             Edge clickedEdge = logicGraph.getEdgeAt(mouseX, mouseY, 6f);
-
             if (clickedEdge != null) {
-                // Erzeuge einen eindeutigen Namen anhand des aktuellen Zeitstempels
                 String junctionName = "Junc_" + System.currentTimeMillis();
-
-                // Nutze deine unfehlbare Logik-Methode zum Aufbrechen!
                 JunctionNode newJunction = logicGraph.splitEdgeWithJunction(clickedEdge, junctionName);
-
-                // Platziere den neuen Knotenpunkt EXAKT unter der Maus
-                newJunction.setPosition(mouseX, mouseY);
+                newJunction.setPosition(snap(mouseX), snap(mouseY));
             }
         }
-// FALL 2: NORMALER KLICK -> Gatter greifen (Nur wenn Shift NICHT gedrückt ist)
+        // 2. Normaler Klick -> Greift Gatter ODER Junctions und berechnet den Offset
         else if (ImGui.isMouseClicked(0)) {
             Node hitNode = logicGraph.getNodeAt(mouseX, mouseY);
-            if (hitNode != null && !(hitNode instanceof JunctionNode)) {
+            if (hitNode != null) {
                 draggingNode = hitNode;
+                // Berechne, wie weit die Maus vom linken oberen Rand des Knotens entfernt ist
+                mouseOffsetX = mouseX - draggingNode.getX();
+                mouseOffsetY = mouseY - draggingNode.getY();
             }
         }
 
-// Festhalten und bewegen
+        // 3. Festhalten und bewegen mit absolut flüssigem Snapping
         if (draggingNode != null && ImGui.isMouseDragging(0)) {
-            float deltaX = ImGui.getIO().getMouseDeltaX();
-            float deltaY = ImGui.getIO().getMouseDeltaY();
-            draggingNode.setPosition(draggingNode.getX() + deltaX, draggingNode.getY() + deltaY);
+            // Berechne die ungefilterte Wunschposition des Gatters basierend auf der aktuellen Mausposition
+            float rawTargetX = mouseX - mouseOffsetX;
+            float rawTargetY = mouseY - mouseOffsetY;
+
+            // Erst JETZT wird die Gesamtposition auf das Raster gerundet.
+            // Da mouseX sich kontinuierlich bewegt, springt das Gatter jetzt
+            // absolut butterweich von Punkt zu Punkt, egal wie langsam du ziehst!
+            draggingNode.setPosition(snap(rawTargetX), snap(rawTargetY));
         }
 
-// Loslassen
+        // 4. Loslassen
         if (ImGui.isMouseReleased(0)) {
             draggingNode = null;
         }
@@ -91,14 +113,6 @@ public class EditorWindow extends Application {
         // =================================================================
         // ZEICHEN-LOGIK (Unverändert)
         // =================================================================
-        ImDrawList drawList = ImGui.getWindowDrawList();
-        int colorNodeBg     = ImGui.getColorU32(0.15f, 0.15f, 0.15f, 1.0f);
-        int colorNodeBorder = ImGui.getColorU32(0.40f, 0.40f, 0.40f, 1.0f);
-        int colorText       = ImGui.getColorU32(1.0f, 1.0f, 1.0f, 1.0f);
-        int colorPinLow     = ImGui.getColorU32(0.3f, 0.3f, 0.3f, 1.0f);
-        int colorPinHigh    = ImGui.getColorU32(0.0f, 1.0f, 0.0f, 1.0f);
-
-        // Kabel zeichnen
         for (Edge edge : logicGraph.getEdges()) {
             Pin src = logicGraph.findPinGlobally(edge.getSourcePinId());
             Pin dest = logicGraph.findPinGlobally(edge.getDestPinId());
@@ -108,7 +122,6 @@ public class EditorWindow extends Application {
             }
         }
 
-        // Gatter und Pins zeichnen
         for (Node node : logicGraph.getNodes()) {
             if (node instanceof JunctionNode) {
                 Pin p = node.getInputs().get(0);
