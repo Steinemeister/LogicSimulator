@@ -1,32 +1,44 @@
 package logicSimulator;
 
+import imgui.app.Application;
 import logicSimulator.graph.Edge;
 import logicSimulator.graph.Graph;
-import logicSimulator.graph.nodes.*;
-import logicSimulator.graph.nodes.io.ButtonNode;
-import logicSimulator.graph.nodes.io.LedNode;
 import logicSimulator.graph.nodes.logic.*;
-import logicSimulator.graph.nodes.module.CustomModuleNode;
+import logicSimulator.rendering.EditorWindow;
 
 public class Main {
     public static void main(String[] args) {
-        CustomModuleNode meinModul = new CustomModuleNode("MeinInverter");
-        meinModul.addExternalInput("Eingang_1");   // Landet bei inputs.get(0)
-        meinModul.addExternalOutput("Ausgang_1"); // Landet bei outputs.get(0)
+        // 1. Initialisiere die Logik-Engine auf dem Haupt-Thread
+        Graph mainGraph = new Graph();
 
-        Graph innerGraph = meinModul.getInternalGraph();
-        NotNode internesNot = new NotNode("NOT");
-        innerGraph.addNode(internesNot);
+        AndNode and1 = new AndNode("AND_1");
+        and1.setPosition(100f, 150f);
 
-// Verdrahtung im Inneren absolut fingersicher per UUID verknüpfen:
-// Kabel 1: Vom inneren Input-Knoten zum NOT-Eingang
-        Pin vonInput = meinModul.getInternalInputNodes().get(0).getOutputs().get(0);
-        Pin zuNot = internesNot.getInputs().get(0);
-        innerGraph.addEdge(new Edge(vonInput, zuNot));
+        NotNode not1 = new NotNode("NOT_1");
+        not1.setPosition(300f, 150f);
 
-// Kabel 2: Vom NOT-Ausgang zum inneren Output-Knoten
-        Pin vonNot = internesNot.getOutputs().get(0);
-        Pin zuOutput = meinModul.getInternalOutputNodes().get(0).getInputs().get(0);
-        innerGraph.addEdge(new Edge(vonNot, zuOutput));
+        mainGraph.addNode(and1);
+        mainGraph.addNode(not1);
+
+// Kabel ziehen: AND-Out zu NOT-In
+        mainGraph.addEdge(new Edge(and1.getOutputs().get(0), not1.getInputs().get(0)));
+        mainGraph.initializeSimulation();
+
+        System.out.println("[Main-Thread] Simulations-Engine gestartet.");
+
+        // 2. Erstelle das ImGui-Fenster-Objekt
+        EditorWindow editor = new EditorWindow(mainGraph);
+
+        // 3. Starte das Rendering auf einem SEPARATEN RENDER-THREAD
+        Thread renderThread = new Thread(() -> {
+            System.out.println("[Render-Thread] Starte GLFW & ImGui-Kontext...");
+            // launch() blockiert den Thread so lange, wie das Fenster geöffnet ist
+            Application.launch(editor);
+            System.out.println("[Render-Thread] Fenster geschlossen.");
+        });
+
+        // Name zuweisen für leichteres Debugging
+        renderThread.setName("ImGui-Render-Thread");
+        renderThread.start();
     }
 }
