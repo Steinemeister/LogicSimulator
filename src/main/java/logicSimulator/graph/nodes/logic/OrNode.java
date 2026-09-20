@@ -5,8 +5,8 @@ import logicSimulator.graph.nodes.Node;
 import logicSimulator.graph.nodes.Pin;
 
 public class OrNode extends Node {
-    public OrNode(String name) {
-        super(name);
+    public OrNode() {
+        super("OR");
 
         // Pins in die Listen eintragen
         inputs.add(new Pin("A", this));

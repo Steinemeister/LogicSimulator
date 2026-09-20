@@ -4,7 +4,7 @@ import logicSimulator.graph.Graph;
 
 public class JunctionNode extends Node {
     public JunctionNode(String name) {
-        super(name);
+        super("JUNCTION");
         this.width = 0f;
         this.height = 0f;
 

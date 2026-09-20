@@ -5,8 +5,8 @@ import logicSimulator.graph.nodes.Node;
 import logicSimulator.graph.nodes.Pin;
 
 public class AndNode extends Node {
-    public AndNode(String name) {
-        super(name);
+    public AndNode() {
+        super("AND");
 
         inputs.add(new Pin("A", this));
         inputs.add(new Pin("B", this));

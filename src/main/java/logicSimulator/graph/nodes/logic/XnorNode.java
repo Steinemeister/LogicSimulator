@@ -5,8 +5,8 @@ import logicSimulator.graph.nodes.Node;
 import logicSimulator.graph.nodes.Pin;
 
 public class XnorNode extends Node {
-    public XnorNode(String name) {
-        super(name);
+    public XnorNode() {
+        super("XNOR");
         inputs.add(new Pin("A", this));
         inputs.add(new Pin("B", this));
         outputs.add(new Pin("Out", this));

@@ -5,8 +5,8 @@ import logicSimulator.graph.nodes.Node;
 import logicSimulator.graph.nodes.Pin;
 
 public class XorNode extends Node {
-    public XorNode(String name) {
-        super(name);
+    public XorNode() {
+        super("XOR");
         inputs.add(new Pin("A", this));
         inputs.add(new Pin("B", this));
         outputs.add(new Pin("Out", this));

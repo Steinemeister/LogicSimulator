@@ -5,8 +5,8 @@ import logicSimulator.graph.nodes.Node;
 import logicSimulator.graph.nodes.Pin;
 
 public class NandNode extends Node {
-    public NandNode(String name) {
-        super(name);
+    public NandNode() {
+        super("NAND");
         inputs.add(new Pin("A", this));
         inputs.add(new Pin("B", this));
         outputs.add(new Pin("Out", this));

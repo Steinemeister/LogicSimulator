@@ -208,6 +208,18 @@ public class Graph {
         return newJunction;
     }
 
+    public void removeNode(Node node) {
+        if (node == null) return;
+        nodes.remove(node);
+
+        // Sicherheits-Feature: Lösche alle Kabel, die an Pins dieses Knotens hingen
+        edges.removeIf(edge -> {
+            Pin src = findPinGlobally(edge.getSourcePinId());
+            Pin dest = findPinGlobally(edge.getDestPinId());
+            return (src != null && src.getOwner() == node) || (dest != null && dest.getOwner() == node);
+        });
+    }
+
     public List<Node> getNodes() { return nodes; }
     public List<Edge> getEdges() { return edges; }
 }

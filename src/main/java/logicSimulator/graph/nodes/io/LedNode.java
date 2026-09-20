@@ -5,8 +5,8 @@ import logicSimulator.graph.nodes.Node;
 import logicSimulator.graph.nodes.Pin;
 
 public class LedNode extends Node {
-    public LedNode(String name) {
-        super(name);
+    public LedNode() {
+        super("LED");
 
         // 1. Eingangs-Pin hinzufügen
         inputs.add(new Pin("In", this));

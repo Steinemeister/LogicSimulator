@@ -7,8 +7,8 @@ import logicSimulator.graph.nodes.Pin;
 public class ButtonNode extends Node {
     private boolean isPressed = false;
 
-    public ButtonNode(String name) {
-        super(name);
+    public ButtonNode() {
+        super("Button");
 
         outputs.add(new Pin("Out", this));
 

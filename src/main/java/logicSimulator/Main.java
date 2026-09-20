@@ -3,6 +3,7 @@ package logicSimulator;
 import imgui.app.Application;
 import logicSimulator.graph.Edge;
 import logicSimulator.graph.Graph;
+import logicSimulator.graph.NodeRegistry;
 import logicSimulator.graph.nodes.Pin;
 import logicSimulator.graph.nodes.io.ButtonNode;
 import logicSimulator.graph.nodes.io.LedNode;
@@ -13,43 +14,27 @@ public class Main {
     public static void main(String[] args) {
         Graph workspace = new Graph();
 
-        // 1. Komponenten erstellen
-        ButtonNode switchA = new ButtonNode("Schalter_A");
-        ButtonNode switchB = new ButtonNode("Schalter_B");
-        OrNode orGate = new OrNode("OR");
-        LedNode targetLed = new LedNode("Zentral_LED");
+        // 1. Das zentrale Register erstellen
+        NodeRegistry registry = new NodeRegistry();
 
-        // 2. Auf dem Grid platzieren (Alle Koordinaten glatt durch 20 teilbar)
-        switchA.setPosition(100f, 100f);
-        switchB.setPosition(100f, 200f);
-        orGate.setPosition(300f, 150f);
-        targetLed.setPosition(500f, 150f);
+        // 2. Die Standard-Baupläne registrieren (Verwendung von schlichten Lambdas)
+        registry.registerType("AND Gatter", AndNode::new);
+        registry.registerType("NAND Gatter", NandNode::new);
+        registry.registerType("OR Gatter", OrNode::new);
+        registry.registerType("NOT Inverter", NotNode::new);
+        registry.registerType("Schalter", ButtonNode::new);
+        registry.registerType("LED Lampe", LedNode::new);
+        registry.registerType("XOR Gatter", XorNode::new);
+        registry.registerType("XNOR Gatter", XnorNode::new);
 
-        workspace.addNode(switchA);
-        workspace.addNode(switchB);
-        workspace.addNode(orGate);
-        workspace.addNode(targetLed);
+        // Wenn der Benutzer später im UI ein Custom-Modul speichert, ruft dein Code einfach auf:
+        // registry.registerType("MeinSuperModul", () -> new CustomModuleNode("MeinSuperModul"));
+        // und es taucht augenblicklich in der Sidebar auf!
 
-        // =================================================================
-        // 3. SAUBERE VERDRAHTUNG ÜBER DAS ODER-GATTER
-        // =================================================================
-
-        // Kabel 1: Schalter A -> OR Eingang A (Index 0)
-        workspace.addEdge(new Edge(switchA.getOutputs().get(0), orGate.getInputs().get(0)));
-
-        // Kabel 2: Schalter B -> OR Eingang B (Index 1)
-        workspace.addEdge(new Edge(switchB.getOutputs().get(0), orGate.getInputs().get(1)));
-
-        // Kabel 3: OR Ausgang -> LED Eingang
-        workspace.addEdge(new Edge(orGate.getOutputs().get(0), targetLed.getInputs().get(0)));
-
-        // =================================================================
-        // 4. SIMULATION STARTEN
-        // =================================================================
         workspace.initializeSimulation();
-        System.out.println("[Main-Thread] OR-Verknüpfungs-Schaltung erfolgreich gestartet.");
 
-        EditorWindow editor = new EditorWindow(workspace);
+        // 3. Register an das Fenster übergeben
+        EditorWindow editor = new EditorWindow(workspace, registry);
 
         Thread renderThread = new Thread(() -> {
             Application.launch(editor);

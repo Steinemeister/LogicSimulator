@@ -5,9 +5,9 @@ import logicSimulator.graph.Graph;
 import java.util.*;
 
 public abstract class Node {
-    private final String name;
+    private final UUID instanceId; // Eindeutige ID der konkreten Instanz auf dem Feld
+    private final String typeName; // Der Typ-Name (z.B. "AND", "OR", "CustomCPU")
 
-    // Pins werden jetzt in Listen statt fehleranfälligen Maps gespeichert
     protected final List<Pin> inputs = new ArrayList<>();
     protected final List<Pin> outputs = new ArrayList<>();
 
@@ -16,43 +16,28 @@ public abstract class Node {
     protected float width;
     protected float height;
 
-    public Node(String name) {
-        this.name = name;
+    public Node(String typeName) {
+        this.instanceId = UUID.randomUUID();
+        this.typeName = typeName;
         this.width = 80f;
     }
 
     public void calculateLayout(float gridSize) {
-        int inputCount = inputs.size();
-        int outputCount = outputs.size();
-        int maxPins = Math.max(inputCount, outputCount);
-
-        // Die Standardbreite bleibt ein Vielfaches des Grids (z.B. 80f)
-        this.width = Math.round(80f / gridSize) * gridSize;
-
+        int maxPins = Math.max(inputs.size(), outputs.size());
         if (maxPins == 0) {
             this.height = gridSize;
             return;
         }
-
-        // Die Höhe entspricht exakt den benötigten Grid-Kacheln
         this.height = maxPins * gridSize;
 
-        // Inputs links platzieren: Versatz um ein halbes Grid nach unten!
         for (int i = 0; i < inputs.size(); i++) {
-            float relY = (i * gridSize) + (gridSize / 2f); // Versatz um gridSize / 2
-            inputs.get(i).setRelativePosition(0f, relY);
+            inputs.get(i).setRelativePosition(0f, (i * gridSize) + (gridSize / 2f));
         }
-
-        // Outputs rechts platzieren: Versatz um ein halbes Grid nach unten!
-        for (int j = 0; j < outputs.size(); j++) {
-            float relY = (j * gridSize) + (gridSize / 2f);
-            outputs.get(j).setRelativePosition(this.width, relY);
+        for (int i = 0; i < outputs.size(); i++) {
+            outputs.get(i).setRelativePosition(this.width, (i * gridSize) + (gridSize / 2f));
         }
     }
 
-    /**
-     * Sucht einen Pin in diesem Knoten anhand seiner UUID.
-     */
     public Pin findPinById(UUID pinId) {
         for (Pin p : inputs)  if (p.getId().equals(pinId)) return p;
         for (Pin p : outputs) if (p.getId().equals(pinId)) return p;
@@ -79,9 +64,15 @@ public abstract class Node {
     public float getWidth() { return width; }
     public float getHeight() { return height; }
     public boolean contains(float mx, float my) { return mx >= x && mx <= x + width && my >= y && my <= y + height; }
-    public String getName() { return name; }
+
+    public UUID getInstanceId() { return instanceId; }
+    public String getTypeName() { return typeName; } // NEU: Liefert den Typnamen für die Sidebar
     public List<Pin> getInputs() { return inputs; }
     public List<Pin> getOutputs() { return outputs; }
 
     public abstract void update(Graph graph);
+
+    public String getName() {
+        return typeName;
+    }
 }
