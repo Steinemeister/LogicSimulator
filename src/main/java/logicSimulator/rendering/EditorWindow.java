@@ -101,10 +101,32 @@ public class EditorWindow extends Application {
                     sourcePinForNewEdge = clickedPin; // Kabel ziehen starten
                 } else {
                     if (sourcePinForNewEdge != clickedPin) {
-                        logicGraph.addEdge(new Edge(sourcePinForNewEdge, clickedPin));
-                        logicGraph.initializeSimulation();
+
+                        // NEU: SCHUTZ-CHECK VOR SIGNALKONFLIKTEN
+                        // Wenn der Ziel-Pin ein EINGANG (Input) ist, prüfen wir, ob er schon belegt ist
+                        boolean isInput = clickedPin.getOwner().getInputs().contains(clickedPin);
+                        boolean isAlreadyConnected = false;
+
+                        if (isInput) {
+                            for (Edge edge : logicGraph.getEdges()) {
+                                if (edge.getDestPinId().equals(clickedPin.getId())) {
+                                    isAlreadyConnected = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (isAlreadyConnected) {
+                            // OPTIONAL: Hier könntest du eine ImGui-Warnmeldung ausgeben.
+                            // Wir brechen das Kabelziehen einfach ab, da die Aktion illegal ist!
+                            System.out.println("[Editor] Fehler: Dieser Eingang ist bereits belegt! Nutze eine Junction zum Zusammenführen.");
+                        } else {
+                            // Wenn der Pin frei ist (oder ein Ausgang/Junction-Punkt), wird das Kabel normal gelegt
+                            logicGraph.addEdge(new Edge(sourcePinForNewEdge, clickedPin));
+                            logicGraph.initializeSimulation();
+                        }
                     }
-                    sourcePinForNewEdge = null; // Kabelziehen beenden
+                    sourcePinForNewEdge = null; // Kabelziehen in jedem Fall beenden
                 }
             } else {
                 Node hitNode = logicGraph.getNodeAt(mouseX, mouseY);
@@ -171,10 +193,24 @@ public class EditorWindow extends Application {
         if (sourcePinForNewEdge != null) {
             float x1 = sourcePinForNewEdge.getAbsoluteX();
             float y1 = sourcePinForNewEdge.getAbsoluteY();
+
+            // Standard-Zielkoordinate: Das freie Grid unter der Maus
             float x2 = snap(mouseX);
             float y2 = snap(mouseY);
 
+            // MAGNET-EFFEKT: Wir schauen, ob die Maus nah an irgendeinem Pin (Radius 15px) steht
+            Pin hoveredPin = logicGraph.getAnyPinAt(mouseX, mouseY, 15f);
+
+            if (hoveredPin != null) {
+                // Wenn die Maus über einem Pin schwebt, saugt sich das Kabel exakt an dessen Position fest!
+                x2 = hoveredPin.getAbsoluteX();
+                y2 = hoveredPin.getAbsoluteY();
+            }
+
+            // Berechne den orthogonalen S-Knick basierend auf dem (eventuell magnetischen) Ziel
             float midX = x1 + (x2 - x1) / 2f;
+
+            // Zeichne die 3 rechtwinkligen Segmente für die Vorschau
             drawList.addLine(x1, y1, midX, y1, colorTempCable, 1.5f);
             drawList.addLine(midX, y1, midX, y2, colorTempCable, 1.5f);
             drawList.addLine(midX, y2, x2, y2, colorTempCable, 1.5f);
