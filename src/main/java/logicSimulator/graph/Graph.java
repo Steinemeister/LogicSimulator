@@ -114,6 +114,26 @@ public class Graph {
         propagateSignals();
     }
 
+    public Node getNodeAt(float mx, float my) {
+        // Rückwärts durchlaufen, damit Gatter im Vordergrund zuerst gegriffen werden
+        for (int i = nodes.size() - 1; i >= 0; i--) {
+            Node node = nodes.get(i);
+            if (node.contains(mx, my)) {
+                return node;
+            }
+        }
+        return null;
+    }
+
+    public Edge getEdgeAt(float mx, float my, float tolerance) {
+        for (Edge edge : edges) {
+            if (edge.isPointNearLine(mx, my, tolerance, this)) {
+                return edge;
+            }
+        }
+        return null;
+    }
+
     public JunctionNode splitEdgeWithJunction(Edge edgeToSplit, String junctionName) {
         Pin originalSrc = findPinGlobally(edgeToSplit.getSourcePinId());
         Pin originalDest = findPinGlobally(edgeToSplit.getDestPinId());

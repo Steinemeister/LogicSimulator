@@ -13,6 +13,8 @@ import logicSimulator.graph.nodes.Pin;
 public class EditorWindow extends Application {
     private final Graph logicGraph;
 
+    private Node draggingNode = null;
+
     public EditorWindow(Graph logicGraph) {
         this.logicGraph = logicGraph;
     }
@@ -33,7 +35,6 @@ public class EditorWindow extends Application {
      */
     @Override
     public void process() {
-        // Fenster nimmt den gesamten Bildschirm ein
         ImGui.setNextWindowPos(0, 0);
         ImGui.setNextWindowSize(ImGui.getIO().getDisplaySizeX(), ImGui.getIO().getDisplaySizeY());
 
@@ -45,42 +46,70 @@ public class EditorWindow extends Application {
 
         ImGui.begin("CanvasWindow", windowFlags);
 
-        // Wir holen uns die Zeichen-Leinwand für das aktuelle Fenster
-        ImDrawList drawList = ImGui.getWindowDrawList();
-
-        // Farbdefinitionen (ImGui nutzt das Format 0xAABBGGRR)
-        int colorNodeBg     = ImGui.getColorU32(0.15f, 0.15f, 0.15f, 1.0f); // Dunkelgrau
-        int colorNodeBorder = ImGui.getColorU32(0.40f, 0.40f, 0.40f, 1.0f); // Hellgrau
-        int colorText       = ImGui.getColorU32(1.0f, 1.0f, 1.0f, 1.0f);    // Weiß
-        int colorPinLow     = ImGui.getColorU32(0.3f, 0.3f, 0.3f, 1.0f);    // Mattes Grau
-        int colorPinHigh    = ImGui.getColorU32(0.0f, 1.0f, 0.0f, 1.0f);    // Leuchtend Grün
-
         // =================================================================
-        // 1. KABEL (EDGES) ZEICHNEN (Zuerst, damit sie hinter den Gattern liegen)
-        // =================================================================
-        for (Edge edge : logicGraph.getEdges()) {
-            Pin src = logicGraph.findPinGlobally(edge.getSourcePinId());
-            Pin dest = logicGraph.findPinGlobally(edge.getDestPinId());
+// MAUS-INTERAKTIONEN (Verschieben & Splitten)
+// =================================================================
+        float mouseX = ImGui.getMousePosX();
+        float mouseY = ImGui.getMousePosY();
 
-            if (src != null && dest != null) {
-                // Bestimme die Farbe basierend auf dem logischen Zustand
-                int cableColor = (src.getState() == Pin.State.HIGH) ? colorPinHigh : colorPinLow;
+// FALL 1: SHIFT-KLICK -> Kabel splitten
+        if (ImGui.getIO().getKeyShift() && ImGui.isMouseClicked(0)) {
+            // Toleranz von 6 Pixeln, um das Kabel mit der Maus gut zu treffen
+            Edge clickedEdge = logicGraph.getEdgeAt(mouseX, mouseY, 6f);
 
-                // Zeichne eine einfache Linie (Später können wir hier Bezier-Kurven nutzen)
-                drawList.addLine(
-                        src.getAbsoluteX(), src.getAbsoluteY(),
-                        dest.getAbsoluteX(), dest.getAbsoluteY(),
-                        cableColor,
-                        2.0f // Dicke der Linie in Pixeln
-                );
+            if (clickedEdge != null) {
+                // Erzeuge einen eindeutigen Namen anhand des aktuellen Zeitstempels
+                String junctionName = "Junc_" + System.currentTimeMillis();
+
+                // Nutze deine unfehlbare Logik-Methode zum Aufbrechen!
+                JunctionNode newJunction = logicGraph.splitEdgeWithJunction(clickedEdge, junctionName);
+
+                // Platziere den neuen Knotenpunkt EXAKT unter der Maus
+                newJunction.setPosition(mouseX, mouseY);
+            }
+        }
+// FALL 2: NORMALER KLICK -> Gatter greifen (Nur wenn Shift NICHT gedrückt ist)
+        else if (ImGui.isMouseClicked(0)) {
+            Node hitNode = logicGraph.getNodeAt(mouseX, mouseY);
+            if (hitNode != null && !(hitNode instanceof JunctionNode)) {
+                draggingNode = hitNode;
             }
         }
 
+// Festhalten und bewegen
+        if (draggingNode != null && ImGui.isMouseDragging(0)) {
+            float deltaX = ImGui.getIO().getMouseDeltaX();
+            float deltaY = ImGui.getIO().getMouseDeltaY();
+            draggingNode.setPosition(draggingNode.getX() + deltaX, draggingNode.getY() + deltaY);
+        }
+
+// Loslassen
+        if (ImGui.isMouseReleased(0)) {
+            draggingNode = null;
+        }
+
         // =================================================================
-        // 2. KNOTEN (NODES) UND PINS ZEICHNEN
+        // ZEICHEN-LOGIK (Unverändert)
         // =================================================================
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        int colorNodeBg     = ImGui.getColorU32(0.15f, 0.15f, 0.15f, 1.0f);
+        int colorNodeBorder = ImGui.getColorU32(0.40f, 0.40f, 0.40f, 1.0f);
+        int colorText       = ImGui.getColorU32(1.0f, 1.0f, 1.0f, 1.0f);
+        int colorPinLow     = ImGui.getColorU32(0.3f, 0.3f, 0.3f, 1.0f);
+        int colorPinHigh    = ImGui.getColorU32(0.0f, 1.0f, 0.0f, 1.0f);
+
+        // Kabel zeichnen
+        for (Edge edge : logicGraph.getEdges()) {
+            Pin src = logicGraph.findPinGlobally(edge.getSourcePinId());
+            Pin dest = logicGraph.findPinGlobally(edge.getDestPinId());
+            if (src != null && dest != null) {
+                int cableColor = (src.getState() == Pin.State.HIGH) ? colorPinHigh : colorPinLow;
+                drawList.addLine(src.getAbsoluteX(), src.getAbsoluteY(), dest.getAbsoluteX(), dest.getAbsoluteY(), cableColor, 2.0f);
+            }
+        }
+
+        // Gatter und Pins zeichnen
         for (Node node : logicGraph.getNodes()) {
-            // Sonderfall: Junctions zeichnen wir nicht als Kasten, sondern nur als Punkt
             if (node instanceof JunctionNode) {
                 Pin p = node.getInputs().get(0);
                 int junctionColor = (p.getState() == Pin.State.HIGH) ? colorPinHigh : colorPinLow;
@@ -93,24 +122,16 @@ public class EditorWindow extends Application {
             float w = node.getWidth();
             float h = node.getHeight();
 
-            // Gehäuse (Hintergrund-Rechteck) mit abgerundeten Ecken (4.0f) zeichnen
             drawList.addRectFilled(x, y, x + w, y + h, colorNodeBg, 4.0f);
             drawList.addRect(x, y, x + w, y + h, colorNodeBorder, 4.0f, 0, 1.5f);
-
-            // Gatter-Name zentriert auf das Gehäuse schreiben
-            // Wir versetzen den Text leicht nach innen (z.B. X+10, Y+ Höhe/2 - Text_Offset)
             drawList.addText(x + 10f, y + (h / 2f) - 6f, colorText, node.getName());
 
-            // --- INPUT PINS ZEICHNEN ---
             for (Pin pin : node.getInputs()) {
                 int pinColor = (pin.getState() == Pin.State.HIGH) ? colorPinHigh : colorPinLow;
-                // Zeichne gefüllten Kreis an der absoluten Position des Pins (Radius 4f)
                 drawList.addCircleFilled(pin.getAbsoluteX(), pin.getAbsoluteY(), 4f, pinColor);
-                // Kleiner Rahmen um den Pin für bessere Sichtbarkeit
                 drawList.addCircle(pin.getAbsoluteX(), pin.getAbsoluteY(), 4f, colorNodeBorder, 0, 1f);
             }
 
-            // --- OUTPUT PINS ZEICHNEN ---
             for (Pin pin : node.getOutputs()) {
                 int pinColor = (pin.getState() == Pin.State.HIGH) ? colorPinHigh : colorPinLow;
                 drawList.addCircleFilled(pin.getAbsoluteX(), pin.getAbsoluteY(), 4f, pinColor);
