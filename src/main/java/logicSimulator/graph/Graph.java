@@ -147,32 +147,62 @@ public class Graph {
         return null;
     }
 
-    public JunctionNode splitEdgeWithJunction(Edge edgeToSplit, String junctionName) {
+    public Pin getAnyPinAt(float mx, float my, float radius) {
+        for (Node node : nodes) {
+            Pin pin = node.getPinAt(mx, my, radius);
+            if (pin != null) {
+                return pin;
+            }
+        }
+        return null;
+    }
+
+    public JunctionNode splitEdgeWithJunction(Edge edgeToSplit, String junctionName, float mx, float my, float gridSize) {
         Pin originalSrc = findPinGlobally(edgeToSplit.getSourcePinId());
         Pin originalDest = findPinGlobally(edgeToSplit.getDestPinId());
 
-        // 1. Altes Kabel entfernen
+        // Linien-Endpunkte holen
+        float x1 = originalSrc.getAbsoluteX();
+        float y1 = originalSrc.getAbsoluteY();
+        float x2 = originalDest.getAbsoluteX();
+        float y2 = originalDest.getAbsoluteY();
+
+        // Mathematische Projektion der Maus (mx, my) auf die Strecke (x1,y1) -> (x2,y2)
+        float l2 = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
+        float t = 0f;
+        if (l2 != 0) {
+            t = ((mx - x1) * (x2 - x1) + (my - y1) * (y2 - y1)) / l2;
+            t = Math.max(0f, Math.min(1f, t));
+        }
+
+        // Das ist der exakte Punkt AUF dem Kabel
+        float lineX = x1 + t * (x2 - x1);
+        float lineY = y1 + t * (y2 - y1);
+
+        // Raster-Einrastung für diesen Linienpunkt berechnen
+        float snappedX = Math.round(lineX / gridSize) * gridSize;
+        float snappedY = Math.round(lineY / gridSize) * gridSize;
+
+        // Altes Kabel entfernen
         removeEdge(edgeToSplit);
 
-        // 2. Neue Junction erstellen und hinzufügen
+        // Neue Junction erstellen und exakt auf der Linie platzieren
         JunctionNode newJunction = new JunctionNode(junctionName);
+        newJunction.setPosition(snappedX, snappedY);
         addNode(newJunction);
 
         Pin junctionPin = newJunction.getInputs().get(0);
 
-        // 3. Die zwei neuen Kabelsegmente registrieren
+        // Neue Kabelsegmente legen
         addEdge(new Edge(originalSrc, junctionPin));
         addEdge(new Edge(junctionPin, originalDest));
 
-        // 4. UNFEHLBARER SIGNAL-INJEKTOR:
-        // Wir holen den aktuellen Live-Zustand des Modul-Ausgangs (der ist HIGH)
-        Pin.State currentSourceState = originalSrc.getState();
-
-        // Wir zwingen das Event-System, diesen Zustand als neues Event direkt für den Junction-Pin einzutragen.
-        // Da der Junction-Pin frisch erstellt wurde, steht er auf LOW. Der Wechsel LOW -> HIGH wird GARANTIERT getriggert!
-        queueEvent(junctionPin, currentSourceState, 0);
-
-        // 5. Die Simulation pulsieren lassen, damit die Junction das Signal verarbeitet
+        // Live-Zustand injizieren
+        List<Node> nodesToUpdate = new ArrayList<>();
+        triggerPinChange(originalSrc, originalSrc.getState(), nodesToUpdate);
+        for (Node n : nodesToUpdate) {
+            n.update(this);
+        }
         propagateSignals();
 
         return newJunction;
