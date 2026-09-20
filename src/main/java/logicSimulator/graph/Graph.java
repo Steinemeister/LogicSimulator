@@ -363,14 +363,44 @@ public class Graph {
 
     public void removeNode(Node node) {
         if (node == null) return;
-        nodes.remove(node);
 
-        // Sicherheits-Feature: Lösche alle Kabel, die an Pins dieses Knotens hingen
-        edges.removeIf(edge -> {
+        // 1. Finde alle Kabel, die an diesem Knoten angeschlossen sind
+        List<Edge> edgesToRemove = new ArrayList<>();
+        List<Node> neighborNodesToCheck = new ArrayList<>();
+
+        for (Edge edge : edges) {
             Pin src = findPinGlobally(edge.getSourcePinId());
             Pin dest = findPinGlobally(edge.getDestPinId());
-            return (src != null && src.getOwner() == node) || (dest != null && dest.getOwner() == node);
-        });
+
+            if (src != null && src.getOwner() == node) {
+                edgesToRemove.add(edge);
+                // Merke dir den Nachbar-Knoten am anderen Ende des Kabels
+                if (dest != null && dest.getOwner() != null && !neighborNodesToCheck.contains(dest.getOwner())) {
+                    neighborNodesToCheck.add(dest.getOwner());
+                }
+            } else if (dest != null && dest.getOwner() == node) {
+                edgesToRemove.add(edge);
+                // Merke dir den Nachbar-Knoten am anderen Ende des Kabels
+                if (src != null && src.getOwner() != null && !neighborNodesToCheck.contains(src.getOwner())) {
+                    neighborNodesToCheck.add(src.getOwner());
+                }
+            }
+        }
+
+        // 2. Lösche den eigentlichen Knoten aus dem Graphen
+        nodes.remove(node);
+
+        // 3. Lösche alle abgerissenen Kabel komplett aus der Liste
+        edges.removeAll(edgesToRemove);
+
+        // 4. TRIGGER DIE KASKADE: Jage alle betroffenen Nachbarknoten in die Bereinigung!
+        // Wenn am anderen Ende eines abgerissenen Kabels eine Corner oder Junction saß,
+        // merkt diese jetzt, dass sie in der Luft hängt, und bereinigt sich rekursiv selbst.
+        for (Node neighbor : neighborNodesToCheck) {
+            cleanupUselessConnectedNodes(neighbor);
+        }
+
+        System.out.println("[Engine] Knoten '" + node.getTypeName() + "' gelöscht und abgerissene Leitungen bereinigt.");
     }
 
     public List<Node> getNodes() { return nodes; }

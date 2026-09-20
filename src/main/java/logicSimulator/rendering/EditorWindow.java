@@ -290,10 +290,6 @@ public class EditorWindow extends Application {
                 y2 = snapWithYCorrection(mouseY);
             }
 
-            // Magneteffekt an Pins bleibt erhalten
-            Pin hoveredPin = logicGraph.getAnyPinAt(mouseX, mouseY, 15f);
-            if (hoveredPin != null) { x2 = hoveredPin.getAbsoluteX(); y2 = hoveredPin.getAbsoluteY(); }
-
             // Nur eine einzige gerade Vorschau-Linie zeichnen!
             drawList.addLine(x1, y1, x2, y2, colorTempCable, 1.5f);
         }
