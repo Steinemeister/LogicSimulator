@@ -1,5 +1,6 @@
 package logicSimulator.graph;
 
+import logicSimulator.graph.nodes.CornerNode;
 import logicSimulator.graph.nodes.JunctionNode;
 import logicSimulator.graph.nodes.Pin;
 import logicSimulator.SimulationEvent;
@@ -15,7 +16,111 @@ public class Graph {
 
     public void addNode(Node node) { nodes.add(node); }
     public void addEdge(Edge edge) { edges.add(edge); }
-    public void removeEdge(Edge edge) { edges.remove(edge); }
+
+    public void removeEdge(Edge edge) {
+        if (edge == null) return;
+
+        // Merke dir die betroffenen Knoten, bevor das Kabel gelöscht wird
+        Pin srcPin = findPinGlobally(edge.getSourcePinId());
+        Pin destPin = findPinGlobally(edge.getDestPinId());
+
+        Node srcNode = srcPin != null ? srcPin.getOwner() : null;
+        Node destNode = destPin != null ? destPin.getOwner() : null;
+
+        // 1. Das eigentliche Kabel löschen
+        edges.remove(edge);
+
+        // 2. Automatische Bereinigungskette starten
+        if (srcNode != null) cleanupUselessConnectedNodes(srcNode);
+        if (destNode != null) cleanupUselessConnectedNodes(destNode);
+    }
+
+    private void cleanupUselessConnectedNodes(Node node) {
+        if (node == null) return;
+
+        // Zähle, wie viele Kabel aktuell noch an diesem Knoten hängen
+        List<Edge> connectedEdges = new ArrayList<>();
+        for (Edge e : edges) {
+            Pin src = findPinGlobally(e.getSourcePinId());
+            Pin dest = findPinGlobally(e.getDestPinId());
+            if ((src != null && src.getOwner() == node) || (dest != null && dest.getOwner() == node)) {
+                connectedEdges.add(e);
+            }
+        }
+        int connectedEdgesCount = connectedEdges.size();
+
+        // --- FALL 1: CORNER-NODE IST REINE SPEICHERLEICHE GEWORDEN ---
+        if (node instanceof CornerNode && connectedEdgesCount < 2) {
+            nodes.remove(node);
+
+            // Lösche die verbliebenen Reste dieser Corner und jage deren Nachbarn in die Kaskade
+            for (Edge e : connectedEdges) {
+                edges.remove(e);
+                Pin src = findPinGlobally(e.getSourcePinId());
+                Pin dest = findPinGlobally(e.getDestPinId());
+
+                if (src != null && src.getOwner() != node) cleanupUselessConnectedNodes(src.getOwner());
+                if (dest != null && dest.getOwner() != node) cleanupUselessConnectedNodes(dest.getOwner());
+            }
+            return;
+        }
+
+        // --- FALL 2: JUNCTION-NODE REINIGEN / VEREINFACHEN ---
+        if (node instanceof JunctionNode && connectedEdgesCount <= 2) {
+            // Unterfall 2A: Die Junction hat weniger als 2 Kabel -> Komplett nutzlos, weglöschen!
+            if (connectedEdgesCount < 2) {
+                nodes.remove(node);
+                for (Edge e : connectedEdges) {
+                    edges.remove(e);
+                    Pin src = findPinGlobally(e.getSourcePinId());
+                    Pin dest = findPinGlobally(e.getDestPinId());
+                    if (src != null && src.getOwner() != node) cleanupUselessConnectedNodes(src.getOwner());
+                    if (dest != null && dest.getOwner() != node) cleanupUselessConnectedNodes(dest.getOwner());
+                }
+            }
+            // Unterfall 2B: Exakt 2 Kabel -> Zu einer Corner vereinfachen!
+            else {
+                float currentX = node.getX();
+                float currentY = node.getY();
+
+                Edge incomingEdge = null;
+                Edge outgoingEdge = null;
+                Pin junctionUniversalPin = node.getInputs().get(0);
+
+                for (Edge e : connectedEdges) {
+                    if (e.getDestPinId().equals(junctionUniversalPin.getId())) incomingEdge = e;
+                    if (e.getSourcePinId().equals(junctionUniversalPin.getId())) outgoingEdge = e;
+                }
+
+                // Lösche die alte Junction lautlos
+                nodes.remove(node);
+                if (incomingEdge != null) edges.remove(incomingEdge);
+                if (outgoingEdge != null) edges.remove(outgoingEdge);
+
+                // Erstelle die neue CornerNode
+                CornerNode newCorner = new CornerNode("CornerGen_" + System.currentTimeMillis());
+                newCorner.setPosition(currentX, currentY);
+                nodes.add(newCorner);
+
+                // Verdrahte die offenen Kabelsegmente mit der neuen Corner neu
+                if (incomingEdge != null) {
+                    Pin realSrc = findPinGlobally(incomingEdge.getSourcePinId());
+                    if (realSrc != null) edges.add(new Edge(realSrc, newCorner.getInputs().get(0)));
+                }
+                if (outgoingEdge != null) {
+                    Pin realDest = findPinGlobally(outgoingEdge.getDestPinId());
+                    if (realDest != null) edges.add(new Edge(newCorner.getOutputs().get(0), realDest));
+                }
+
+                System.out.println("[Engine] Junction wurde automatisch zu einer Corner vereinfacht.");
+
+                // FIX: Da diese neue Corner eventuell ebenfalls sofort gelöscht werden könnte
+                // (z.B. weil einer ihrer neuen Nachbarn in der Luft hängt), jagen wir sie DIREKT
+                // noch einmal in die Kaskade!
+                cleanupUselessConnectedNodes(newCorner);
+            }
+        }
+    }
 
     public Pin findPinGlobally(UUID pinId) {
         for (Node node : nodes) {
@@ -76,10 +181,18 @@ public class Graph {
             if (edge.getSourcePinId().equals(pin.getId())) {
                 Pin destPin = findPinGlobally(edge.getDestPinId());
                 if (destPin != null) {
-                    if (destPin.getOwner() instanceof JunctionNode) {
-                        // Junctions leiten das Signal verzögerungsfrei (rekursiv) weiter
+                    if (destPin.getOwner() instanceof JunctionNode || destPin.getOwner() instanceof CornerNode) {
+                        // REKURSION: Sowohl Junctions als auch Corners schalten das Signal verzögerungsfrei durch!
                         if (destPin.getState() != newState) {
-                            triggerPinChange(destPin, newState, nodesToUpdate);
+                            // Wenn es eine CornerNode ist, müssen wir das Signal intern vom Input-Pin auf den Output-Pin spiegeln
+                            if (destPin.getOwner() instanceof CornerNode) {
+                                destPin.setState(newState);
+                                Pin cornerOutPin = destPin.getOwner().getOutputs().get(0);
+                                triggerPinChange(cornerOutPin, newState, nodesToUpdate);
+                            } else {
+                                // Normales Junction-Verhalten
+                                triggerPinChange(destPin, newState, nodesToUpdate);
+                            }
                         }
                     } else {
                         // Normale Gatter erhalten ein Event für JETZT (delay = 0)
@@ -157,6 +270,12 @@ public class Graph {
         return null;
     }
 
+    public void silentRemoveEdge(Edge edge) {
+        if (edge != null) {
+            edges.remove(edge);
+        }
+    }
+
     public JunctionNode splitEdgeWithJunction(Edge edgeToSplit, String junctionName, float mx, float my, float gridSize) {
         Pin originalSrc = findPinGlobally(edgeToSplit.getSourcePinId());
         Pin originalDest = findPinGlobally(edgeToSplit.getDestPinId());
@@ -184,7 +303,7 @@ public class Graph {
         float snappedY = Math.round(lineY / gridSize) * gridSize;
 
         // Altes Kabel entfernen
-        removeEdge(edgeToSplit);
+        silentRemoveEdge(edgeToSplit);
 
         // Neue Junction erstellen und exakt auf der Linie platzieren
         JunctionNode newJunction = new JunctionNode(junctionName);

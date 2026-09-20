@@ -7,6 +7,7 @@ import imgui.app.Configuration;
 import logicSimulator.graph.Edge;
 import logicSimulator.graph.Graph;
 import logicSimulator.graph.NodeRegistry;
+import logicSimulator.graph.nodes.CornerNode;
 import logicSimulator.graph.nodes.JunctionNode;
 import logicSimulator.graph.nodes.Node;
 import logicSimulator.graph.nodes.Pin;
@@ -157,65 +158,69 @@ public class EditorWindow extends Application {
         // --- LINKE MAUSTASTE: Spawnen ODER (Verkabeln, Splitten, Schalten) ---
         if (ImGui.isMouseClicked(0) && mouseOnCanvas) {
 
-            // FALL A: Ein Gatter-Typ aus dem Menü ist ausgewählt -> PLATZIEREN
             if (selectedTypeName != null) {
+                // Normales Platzieren aus der Sidebar (Unverändert)
                 Node newNode = nodeRegistry.createInstance(selectedTypeName);
                 if (newNode != null) {
-                    // Sauberes Einrasten am Gitternetz
                     newNode.setPosition(snap(mouseX), snap(mouseY));
                     logicGraph.addNode(newNode);
                 }
-            }
-            // FALL B: Normaler Interaktionsmodus
-            else {
+            } else {
                 if (ImGui.getIO().getKeyShift()) {
-                    // Shift + Linksklick -> Kabel splitten
+                    // Shift + Linksklick -> Kabel splitten (Nutzt jetzt snapNode für das Linien-Zwischengrid)
                     Edge clickedEdge = logicGraph.getEdgeAt(mouseX, mouseY, 6f);
                     if (clickedEdge != null) {
-                        String junctionName = "Junc_" + System.currentTimeMillis();
-
-                        JunctionNode j = logicGraph.splitEdgeWithJunction(clickedEdge, junctionName, mouseX, mouseY, gridSize);
-
-                        j.setPosition(snap(mouseX), snapWithYCorrection(mouseY));
-
-                        sourcePinForNewEdge = j.getInputs().get(0);
+                        logicGraph.splitEdgeWithJunction(clickedEdge, "Junc_" + System.currentTimeMillis(), mouseX, mouseY, gridSize);
                     }
                 } else {
-                    // Pin-Erkennung (Toleranzradius 6px)
+                    // Normaler Linksklick: Prüfe, ob ein Pin getroffen wurde
                     Pin clickedPin = logicGraph.getAnyPinAt(mouseX, mouseY, 6f);
 
                     if (clickedPin != null) {
                         if (sourcePinForNewEdge == null) {
                             sourcePinForNewEdge = clickedPin; // Kabelziehen starten
                         } else {
+                            // Kabel final andocken
                             if (sourcePinForNewEdge != clickedPin) {
-                                // SCHUTZ VOR SIGNALKONFLIKTEN:
-                                // Wenn das Ziel ein Eingang ist, darf er noch nicht belegt sein!
-                                boolean isAlreadyConnected = false;
-                                if (clickedPin.getOwner().getInputs().contains(clickedPin)) {
-                                    for (Edge edge : logicGraph.getEdges()) {
-                                        if (edge.getDestPinId().equals(clickedPin.getId())) {
-                                            isAlreadyConnected = true;
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                if (!isAlreadyConnected) {
-                                    logicGraph.addEdge(new Edge(sourcePinForNewEdge, clickedPin));
-                                    logicGraph.initializeSimulation();
-                                } else {
-                                    System.out.println("[Editor] Fehler: Eingang besetzt! Nutze ein OR-Gatter.");
-                                }
+                                logicGraph.addEdge(new Edge(sourcePinForNewEdge, clickedPin));
+                                logicGraph.initializeSimulation();
                             }
-                            sourcePinForNewEdge = null; // Kabelziehen beenden
+                            sourcePinForNewEdge = null;
                         }
-                    } else {
-                        // Kein Pin getroffen? Prüfe, ob ein interaktiver Button geschaltet wurde
+                    }
+                    // =========================================================
+                    // NEU: KLICK AUF FREIE FLÄCHE WÄHREND DES KABELZIEHENS (CORNER SPAWN)
+                    // =========================================================
+                    else if (sourcePinForNewEdge != null) {
+                        float startX = sourcePinForNewEdge.getAbsoluteX();
+                        float startY = sourcePinForNewEdge.getAbsoluteY();
+
+                        // Entscheide anhand des größeren Abstands, ob die Linie horizontal oder vertikal läuft
+                        float targetX, targetY;
+                        if (Math.abs(mouseX - startX) > Math.abs(mouseY - startY)) {
+                            targetX = snap(mouseX);
+                            targetY = snapWithYCorrection(startY); // Bleibe starr auf der horizontalen Start-Linie
+                        } else {
+                            targetX = snap(startX); // Bleibe starr auf der vertikalen Start-Linie
+                            targetY = snapWithYCorrection(mouseY);
+                        }
+
+                        // Erzeuge die CornerNode mitten im Betrieb
+                        CornerNode corner = new CornerNode("Corner_" + System.currentTimeMillis());
+                        corner.setPosition(targetX, targetY);
+                        logicGraph.addNode(corner);
+
+                        // Verbinde das bisherige Segment vom Start zum Eingang der Corner
+                        logicGraph.addEdge(new Edge(sourcePinForNewEdge, corner.getInputs().get(0)));
+
+                        // NAHTLOS WEITERZIEHEN: Der Ausgang der Corner wird sofort der neue Kabel-Start!
+                        sourcePinForNewEdge = corner.getOutputs().get(0);
+                        logicGraph.initializeSimulation();
+                    }
+                    // Klick flach auf ein Gehäuse
+                    else {
                         Node hitNode = logicGraph.getNodeAt(mouseX, mouseY);
-                        if (hitNode instanceof ButtonNode) {
-                            ((ButtonNode) hitNode).toggle(logicGraph);
-                        }
+                        if (hitNode instanceof ButtonNode) ((ButtonNode) hitNode).toggle(logicGraph);
                     }
                 }
             }
@@ -259,24 +264,14 @@ public class EditorWindow extends Application {
         // 4. ZEICHEN-LOGIK (Kabel, Vorschau, Gatter)
         // =================================================================
 
-        // A) Bestehende Kabel im orthogonalen 90-Grad-Winkel zeichnen
         for (Edge edge : logicGraph.getEdges()) {
             Pin src = logicGraph.findPinGlobally(edge.getSourcePinId());
             Pin dest = logicGraph.findPinGlobally(edge.getDestPinId());
 
             if (src != null && dest != null) {
                 int cableColor = (src.getState() == Pin.State.HIGH) ? colorPinHigh : colorPinLow;
-                float x1 = src.getAbsoluteX(); float y1 = src.getAbsoluteY();
-                float x2 = dest.getAbsoluteX(); float y2 = dest.getAbsoluteY();
-
-                if (x1 == x2 || y1 == y2) {
-                    drawList.addLine(x1, y1, x2, y2, cableColor, 2.0f);
-                } else {
-                    float midX = x1 + (x2 - x1) / 2f;
-                    drawList.addLine(x1, y1, midX, y1, cableColor, 2.0f);
-                    drawList.addLine(midX, y1, midX, y2, cableColor, 2.0f);
-                    drawList.addLine(midX, y2, x2, y2, cableColor, 2.0f);
-                }
+                // Einfache, schnurgerade Linie von Pin zu Pin
+                drawList.addLine(src.getAbsoluteX(), src.getAbsoluteY(), dest.getAbsoluteX(), dest.getAbsoluteY(), cableColor, 2.0f);
             }
         }
 
@@ -284,18 +279,23 @@ public class EditorWindow extends Application {
         if (sourcePinForNewEdge != null) {
             float x1 = sourcePinForNewEdge.getAbsoluteX();
             float y1 = sourcePinForNewEdge.getAbsoluteY();
-            float x2 = snap(mouseX);
-            float y2 = snapWithYCorrection(mouseY);
 
-            // Magnet-Effekt: Sauge Kabel ans Pin-Zentrum, wenn die Maus nah dran ist (15px)
-            Pin hoveredPin = logicGraph.getAnyPinAt(mouseX, mouseY, 15f);
-            if (hoveredPin != null) {
-                x2 = hoveredPin.getAbsoluteX();y2 = hoveredPin.getAbsoluteY();
+            float x2, y2;
+            // Bestimme live für die Vorschau, in welche Richtung der Draht einrastet
+            if (Math.abs(mouseX - x1) > Math.abs(mouseY - y1)) {
+                x2 = snap(mouseX);
+                y2 = snapWithYCorrection(y1); // Starr horizontal
+            } else {
+                x2 = snap(x1); // Starr vertikal
+                y2 = snapWithYCorrection(mouseY);
             }
-            float midX = x1 + (x2 - x1) / 2f;
-            drawList.addLine(x1, y1, midX, y1, colorTempCable, 1.5f);
-            drawList.addLine(midX, y1, midX, y2, colorTempCable, 1.5f);
-            drawList.addLine(midX, y2, x2, y2, colorTempCable, 1.5f);
+
+            // Magneteffekt an Pins bleibt erhalten
+            Pin hoveredPin = logicGraph.getAnyPinAt(mouseX, mouseY, 15f);
+            if (hoveredPin != null) { x2 = hoveredPin.getAbsoluteX(); y2 = hoveredPin.getAbsoluteY(); }
+
+            // Nur eine einzige gerade Vorschau-Linie zeichnen!
+            drawList.addLine(x1, y1, x2, y2, colorTempCable, 1.5f);
         }
         // C) Visuelle Platzierungsvorschau (Ghost-Preview) des ausgewählten Typs
         if (selectedTypeName != null && mouseOnCanvas) {
@@ -303,13 +303,24 @@ public class EditorWindow extends Application {
             if (previewNode != null) {
                 float previewX = snap(mouseX);
                 float previewY = snap(mouseY);
-                drawList.addRectFilled(previewX, previewY, previewX + previewNode.getWidth(), previewY + previewNode.getHeight(), colorPreview, 4.0f);drawList.addRect(previewX, previewY, previewX + previewNode.getWidth(), previewY + previewNode.getHeight(), colorNodeBorder, 4.0f, 0, 1.5f);}}
+                drawList.addRectFilled(previewX, previewY, previewX + previewNode.getWidth(), previewY + previewNode.getHeight(), colorPreview, 4.0f);
+                drawList.addRect(previewX, previewY, previewX + previewNode.getWidth(), previewY + previewNode.getHeight(), colorNodeBorder, 4.0f, 0, 1.5f);
+            }
+        }
+
         // D) Gatter, Junctions und Pins aus dem Graphen rendern
         for (Node node : logicGraph.getNodes()) {
             if (node instanceof JunctionNode) {
                 Pin p = node.getInputs().get(0);
                 int junctionColor = (p.getState() == Pin.State.HIGH) ? colorPinHigh : colorPinLow;
                 drawList.addCircleFilled(p.getAbsoluteX(), p.getAbsoluteY(), 5f, junctionColor);
+                continue;
+            }
+            if (node instanceof CornerNode) {
+                Pin p = node.getInputs().get(0);
+                int cornerColor = (p.getState() == Pin.State.HIGH) ? colorPinHigh : colorPinLow;
+                // Zeichne einen winzigen Richtungs-Punkt (Radius 3px)
+                drawList.addCircleFilled(p.getAbsoluteX(), p.getAbsoluteY(), 3f, cornerColor);
                 continue;
             }
             float x = node.getX();
