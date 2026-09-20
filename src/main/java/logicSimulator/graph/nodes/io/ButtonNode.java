@@ -9,25 +9,15 @@ public class ButtonNode extends Node {
 
     public ButtonNode(String name) {
         super(name);
-        // Ausgangs-Pin hinzufügen
+
         outputs.add(new Pin("Out", this));
 
-        // Automatische Pin-Verteilung berechnen (24px Abstand)
-        calculateLayout(24f);
-
-        // Optische Verschönerung: Buttons sollen etwas höher sein als ein einzelner Pin
-        this.height = 50f;
-        this.width = 60f;  // Schmaler, sieht mehr nach Button aus
-
-        // Pins nach der manuellen Größenänderung kurz zentrieren
-        outputs.get(0).setRelativePosition(this.width, this.height / 2f);
+        calculateLayout(20f);
     }
 
     public void toggle(Graph graph) {
         isPressed = !isPressed;
         Pin.State newState = isPressed ? Pin.State.HIGH : Pin.State.LOW;
-
-        // Wir werfen die Änderung des Buttons in die Queue
         graph.queueEvent(outputs.get(0), newState, 0);
         graph.propagateSignals();
     }

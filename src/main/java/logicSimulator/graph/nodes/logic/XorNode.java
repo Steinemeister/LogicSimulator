@@ -11,7 +11,7 @@ public class XorNode extends Node {
         inputs.add(new Pin("B", this));
         outputs.add(new Pin("Out", this));
 
-        calculateLayout(24f);
+        calculateLayout(20f);
     }
 
     @Override

@@ -21,19 +21,32 @@ public abstract class Node {
         this.width = 80f;
     }
 
-    public void calculateLayout(float pinDistance) {
-        int maxPins = Math.max(inputs.size(), outputs.size());
+    public void calculateLayout(float gridSize) {
+        int inputCount = inputs.size();
+        int outputCount = outputs.size();
+        int maxPins = Math.max(inputCount, outputCount);
+
+        // Die Standardbreite bleibt ein Vielfaches des Grids (z.B. 80f)
+        this.width = Math.round(80f / gridSize) * gridSize;
+
         if (maxPins == 0) {
-            this.height = pinDistance;
+            this.height = gridSize;
             return;
         }
-        this.height = maxPins * pinDistance;
 
+        // Die Höhe entspricht exakt den benötigten Grid-Kacheln
+        this.height = maxPins * gridSize;
+
+        // Inputs links platzieren: Versatz um ein halbes Grid nach unten!
         for (int i = 0; i < inputs.size(); i++) {
-            inputs.get(i).setRelativePosition(0f, (i * pinDistance) + (pinDistance / 2f));
+            float relY = (i * gridSize) + (gridSize / 2f); // Versatz um gridSize / 2
+            inputs.get(i).setRelativePosition(0f, relY);
         }
-        for (int i = 0; i < outputs.size(); i++) {
-            outputs.get(i).setRelativePosition(this.width, (i * pinDistance) + (pinDistance / 2f));
+
+        // Outputs rechts platzieren: Versatz um ein halbes Grid nach unten!
+        for (int j = 0; j < outputs.size(); j++) {
+            float relY = (j * gridSize) + (gridSize / 2f);
+            outputs.get(j).setRelativePosition(this.width, relY);
         }
     }
 

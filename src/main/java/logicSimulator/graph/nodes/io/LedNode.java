@@ -7,18 +7,11 @@ import logicSimulator.graph.nodes.Pin;
 public class LedNode extends Node {
     public LedNode(String name) {
         super(name);
-        // Eingangs-Pin hinzufügen
+
+        // 1. Eingangs-Pin hinzufügen
         inputs.add(new Pin("In", this));
 
-        // Layout berechnen
-        calculateLayout(24f);
-
-        // Optische Verschönerung: LEDs quadratisch machen
-        this.height = 50f;
-        this.width = 50f;
-
-        // Pin in der Mitte der linken Kante platzieren
-        inputs.get(0).setRelativePosition(0f, this.height / 2f);
+        calculateLayout(20f);
     }
 
     public boolean isOn() {

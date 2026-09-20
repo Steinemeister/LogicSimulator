@@ -10,7 +10,7 @@ public class NotNode extends Node {
         inputs.add(new Pin("In", this));
         outputs.add(new Pin("Out", this));
 
-        calculateLayout(24f);
+        calculateLayout(20f);
     }
 
     @Override

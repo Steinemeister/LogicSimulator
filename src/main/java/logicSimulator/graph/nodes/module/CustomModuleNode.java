@@ -33,7 +33,7 @@ public class CustomModuleNode extends Node {
         internalInputNodes.add(internalInNode);
 
         // Layout der äußeren Pins aktualisieren
-        calculateLayout(24f);
+        calculateLayout(20f);
     }
 
     /**
@@ -49,7 +49,7 @@ public class CustomModuleNode extends Node {
         internalOutputNodes.add(internalOutNode);
 
         // Layout der äußeren Pins aktualisieren
-        calculateLayout(24f);
+        calculateLayout(20f);
     }
 
     /**

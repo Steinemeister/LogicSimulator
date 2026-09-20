@@ -9,7 +9,7 @@ public class ModuleInputNode extends Node {
         super(name);
         outputs.add(new Pin("Out", this));
 
-        calculateLayout(24f);
+        calculateLayout(20f);
     }
 
     @Override public void update(Graph graph) {}
