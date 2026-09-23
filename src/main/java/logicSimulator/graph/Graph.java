@@ -17,8 +17,9 @@ public class Graph {
         this.edges = new HashMap<>();
     }
 
-    public void queueEvent(Pin pin, long delay) {
-        eventQueue.add(new SimulationEvent(currentTick + delay, pin));
+    public void queueEvent(Pin pin, long delay, Pin.PinState newState) {
+        if (pin.getType() == Pin.PinType.INPUT) return;
+        eventQueue.add(new SimulationEvent(currentTick + delay, pin, newState));
     }
 
     public void runSimulation() {
@@ -28,22 +29,24 @@ public class Graph {
     }
 
     public boolean step() {
+        List<Node> nodesToProcess = new ArrayList<>();
         while (!eventQueue.isEmpty() && eventQueue.peek().tick() == currentTick) {
             SimulationEvent event = eventQueue.poll();
             Pin pin = event.pin();
-            List<Edge> connectedEdges = getEdgesConnectedToPin(pin);
+            pin.setState(event.newState());
+            getEdgesConnectedToPin(pin).forEach(
+                    edge -> edge.getTargets().forEach(
+                            target -> {
+                                target.setState(edge.getState());
+                                nodesToProcess.add(target.getParentNode());
+                            }
+                    )
+            );
 
-            List<Pin> pinsToUpdate = new ArrayList<>();
-            connectedEdges.forEach(edge -> pinsToUpdate.addAll(edge.update()));
-
-            List<Pin> pinsToUpdateLater = new ArrayList<>();
-            pinsToUpdate.forEach(pinToUpdate -> pinsToUpdateLater.addAll(pinToUpdate.getParentNode().update()));
-
-            pinsToUpdateLater.forEach(pinToUpdateLater -> queueEvent(
-                    pinToUpdateLater,
-                    ThreadLocalRandom.current().nextInt(1, 3)
-            ));
         }
+
+        Set<Node> nodesToUpdateSet = new HashSet<>(nodesToProcess);
+        nodesToUpdateSet.forEach(node -> node.update(this));
 
         currentTick++;
         return !eventQueue.isEmpty();

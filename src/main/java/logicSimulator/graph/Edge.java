@@ -25,19 +25,8 @@ public class Edge {
         this.targets.add(target);
     }
 
-    // updates pins
-    public List<Pin> update() {
-        Pin.PinState sourceState = source.getState();
-        List<Pin> pinsToUpdate = new ArrayList<>();
-
-        for (Pin target : targets) {
-            if (target.getState() == sourceState) {
-                continue;
-            }
-            pinsToUpdate.add(target);
-            target.setState(sourceState);
-        }
-        return pinsToUpdate;
+    public Pin.PinState getState() {
+        return source.getState();
     }
 
     public UUID getId() {

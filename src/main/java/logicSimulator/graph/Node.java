@@ -2,6 +2,7 @@ package logicSimulator.graph;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 public abstract class Node {
@@ -21,7 +22,7 @@ public abstract class Node {
     updates output pins based on input pins states
     returns list of pins that changed state
      */
-    public abstract List<Pin> update();
+    public abstract void update(Graph graph);
 
     public UUID getId() {
         return id;
@@ -37,5 +38,10 @@ public abstract class Node {
 
     public List<Pin> getOutputPins() {
         return outputPins;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(this.id);
     }
 }

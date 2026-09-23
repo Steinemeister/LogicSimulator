@@ -1,9 +1,8 @@
 package logicSimulator.graph.nodes;
 
+import logicSimulator.graph.Graph;
 import logicSimulator.graph.Node;
 import logicSimulator.graph.Pin;
-
-import java.util.List;
 
 public class NotNode extends Node {
     public NotNode(String nodeTypeName) {
@@ -13,17 +12,11 @@ public class NotNode extends Node {
     }
 
     @Override
-    public List<Pin> update() {
-        Pin.PinState lastState = this.getOutputPins().getFirst().getState();
-
-        Pin.PinState newState = this.getInputPins().getFirst().getState() == Pin.PinState.LOW ? Pin.PinState.HIGH : Pin.PinState.LOW;
-
-        if (lastState == newState) {
-            return List.of();
+    public void update(Graph graph) {
+        if (this.getInputPins().getFirst().getState() == this.getOutputPins().getFirst().getState()) {
+            Pin output = this.getOutputPins().getFirst();
+            Pin.PinState newState = output.getState() == Pin.PinState.HIGH ? Pin.PinState.LOW : Pin.PinState.HIGH;
+            graph.queueEvent(output, 1,newState);
         }
-
-        this.getOutputPins().getFirst().setState(newState);
-
-        return List.of(this.getOutputPins().getFirst());
     }
 }
