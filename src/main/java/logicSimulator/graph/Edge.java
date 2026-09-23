@@ -1,5 +1,8 @@
 package logicSimulator.graph;
 
+import imgui.ImVec2;
+import logicSimulator.graph.edgeWaypoints.WaypointNode;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -9,6 +12,8 @@ public class Edge {
     private final Pin source;
     private final List<Pin> targets;
 
+    private final WaypointNode rootWaypoint;
+
     public Edge(Pin source) {
         if (source.getType() != Pin.PinType.OUTPUT) {
             throw new IllegalArgumentException("Source must be an OUTPUT pin.");
@@ -16,6 +21,8 @@ public class Edge {
         this.id = UUID.randomUUID();
         this.source = source;
         this.targets = new ArrayList<>();
+
+        this.rootWaypoint = new WaypointNode(source.getPosition());
     }
 
     public void addTarget(Pin target) {
@@ -39,5 +46,12 @@ public class Edge {
 
     public List<Pin> getTargets() {
         return targets;
+    }
+
+    public void updateRootPosition() {
+        this.rootWaypoint.setPos(source.getPosition());
+    }
+    public WaypointNode getRootWaypoint() {
+        return rootWaypoint;
     }
 }
