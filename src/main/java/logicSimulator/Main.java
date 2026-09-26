@@ -6,13 +6,18 @@ import logicSimulator.graph.Graph;
 import logicSimulator.graph.Node;
 import logicSimulator.graph.Pin;
 import logicSimulator.graph.nodes.NotNode;
+import logicSimulator.rendering.Renderer;
+
+import static imgui.app.Application.launch;
 
 public class Main {
     public static void main(String[] args) {
         Graph graph = new Graph();
 
-        Node notNode1 = new NotNode("NOT");
-        Node notNode2 = new NotNode("NOT");
+        Node notNode1 = new NotNode();
+        notNode1.setPos(1, 1);
+        Node notNode2 = new NotNode();
+        notNode2.setPos(4, 1);
         graph.addNode(notNode1);
         graph.addNode(notNode2);
 
@@ -21,20 +26,12 @@ public class Main {
         graph.addEdge(edge1);
 
         Edge edge2 = new Edge(notNode2.getOutputPins().getFirst());
-        edge1.addTarget(notNode1.getInputPins().getFirst());
+        edge2.addTarget(notNode1.getInputPins().getFirst());
         graph.addEdge(edge2);
 
         graph.queueEvent(notNode1.getOutputPins().getFirst(), 0, Pin.PinState.HIGH);
 
-
-        Pin.PinState lastState = Pin.PinState.LOW;
-        for (int i = 0; i < 2000; i++) {
-            graph.step();
-            if (notNode1.getOutputPins().getFirst().getState() == lastState) {
-                System.out.println("funktioniert nicht");
-                break;
-            }
-            lastState = notNode1.getOutputPins().getFirst().getState();
-        }
+        Renderer renderer = new Renderer(graph);
+        launch(renderer);
     }
 }

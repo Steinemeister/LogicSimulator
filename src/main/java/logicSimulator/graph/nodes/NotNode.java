@@ -5,8 +5,8 @@ import logicSimulator.graph.Node;
 import logicSimulator.graph.Pin;
 
 public class NotNode extends Node {
-    public NotNode(String nodeTypeName) {
-        super(nodeTypeName);
+    public NotNode() {
+        super("NOT");
         this.getInputPins().add(new Pin(this, Pin.PinType.INPUT));
         this.getOutputPins().add(new Pin(this, Pin.PinType.OUTPUT));
     }
