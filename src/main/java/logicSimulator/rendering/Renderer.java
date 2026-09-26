@@ -88,22 +88,7 @@ public class Renderer extends Application {
         fontConfig.destroy();
     }
 
-    @Override
-    public void process() {
-        float windowWidth = ImGui.getIO().getDisplaySizeX();
-        float windowHeight = ImGui.getIO().getDisplaySizeY();
-
-        ImGui.setNextWindowPos(0, 0);
-        ImGui.setNextWindowSize(windowWidth, windowHeight);
-
-        int windowFlags = ImGuiWindowFlags.NoTitleBar
-                | ImGuiWindowFlags.NoResize
-                | ImGuiWindowFlags.NoMove
-                | ImGuiWindowFlags.NoCollapse
-                | ImGuiWindowFlags.NoBringToFrontOnFocus;
-
-        ImGui.begin("Zeichenbereich", windowFlags);
-
+    public void processInputs( ImDrawList drawList) {
         if (ImGui.isWindowHovered()) {
             float mouseWheel = ImGui.getIO().getMouseWheel();
             if (mouseWheel != 0.0f) {
@@ -125,25 +110,6 @@ public class Renderer extends Application {
         if (ImGui.isWindowHovered() && ImGui.isMouseDragging(2)) {
             offsetX += ImGui.getIO().getMouseDeltaX() / zoom;
             offsetY += ImGui.getIO().getMouseDeltaY() / zoom;
-        }
-
-        ImDrawList drawList = ImGui.getWindowDrawList();
-
-        float scaledSpacing = GRID_SPACING * zoom;
-
-        float startX = (offsetX * zoom) % scaledSpacing;
-        float startY = (offsetY * zoom) % scaledSpacing;
-        if (startX < 0) startX += scaledSpacing;
-        if (startY < 0) startY += scaledSpacing;
-
-        int dotColor = ImGui.getColorU32(0.5f, 0.5f, 0.5f, 0.5f);
-
-        float dotRadius = Math.max(1.0f, 1.5f * zoom);
-
-        for (float x = startX; x < windowWidth; x += scaledSpacing) {
-            for (float y = startY; y < windowHeight; y += scaledSpacing) {
-                drawList.addCircleFilled(x, y, dotRadius, dotColor);
-            }
         }
 
         float mouseX = ImGui.getIO().getMousePosX();
@@ -241,10 +207,55 @@ public class Renderer extends Application {
             isDraggingNodes = false;
             isSelecting = false;
         }
+    }
+
+    @Override
+    public void process() {
+        float windowWidth = ImGui.getIO().getDisplaySizeX();
+        float windowHeight = ImGui.getIO().getDisplaySizeY();
+
+        ImGui.setNextWindowPos(0, 0);
+        ImGui.setNextWindowSize(windowWidth, windowHeight);
+
+        int windowFlags = ImGuiWindowFlags.NoTitleBar
+                | ImGuiWindowFlags.NoResize
+                | ImGuiWindowFlags.NoMove
+                | ImGuiWindowFlags.NoCollapse
+                | ImGuiWindowFlags.NoBringToFrontOnFocus;
+
+        ImGui.begin("Zeichenbereich", windowFlags);
+
+        ImDrawList drawList = ImGui.getWindowDrawList();
+
+        processInputs(drawList);
+
+        float scaledSpacing = GRID_SPACING * zoom;
+
+        float startX = (offsetX * zoom) % scaledSpacing;
+        float startY = (offsetY * zoom) % scaledSpacing;
+        if (startX < 0) startX += scaledSpacing;
+        if (startY < 0) startY += scaledSpacing;
+
+        int dotColor = ImGui.getColorU32(0.5f, 0.5f, 0.5f, 0.5f);
+
+        float dotRadius = Math.max(1.0f, 1.5f * zoom);
+
+        for (float x = startX; x < windowWidth; x += scaledSpacing) {
+            for (float y = startY; y < windowHeight; y += scaledSpacing) {
+                drawList.addCircleFilled(x, y, dotRadius, dotColor);
+            }
+        }
+
+        graph.getEdges().values().forEach(edge -> {
+            boolean isEdgeSelected = false;
+            edge.render(drawList, offsetX, offsetY, zoom, isEdgeSelected);
+        });
 
         graph.getNodes().values().forEach(node -> node.draw(drawList, offsetX, offsetY, zoom, selectedNodes.contains(node)));
 
         ImGui.end();
+
+        graph.step();
     }
 
     @Override

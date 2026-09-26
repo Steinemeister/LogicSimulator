@@ -81,10 +81,11 @@ public class Pin {
     }
 
     public ImVec2 getPosition() {
-        return  position;
-    }
-
-    public void setPosition(ImVec2 position) {
-        this.position = position;
+        float pinWorldY = parentNode.getY() + 1 + index;
+        float pinWorldX = parentNode.getX();
+        if (this.type == PinType.OUTPUT) {
+            pinWorldX += parentNode.getWidth();
+        }
+        return new ImVec2(pinWorldX, pinWorldY);
     }
 }

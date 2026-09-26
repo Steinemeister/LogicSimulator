@@ -22,12 +22,9 @@ public class Main {
         graph.addNode(notNode2);
 
         Edge edge1 = new Edge(notNode1.getOutputPins().getFirst());
-        edge1.addTarget(notNode2.getInputPins().getFirst());
+        edge1.addTarget(notNode1.getInputPins().getFirst());
         graph.addEdge(edge1);
 
-        Edge edge2 = new Edge(notNode2.getOutputPins().getFirst());
-        edge2.addTarget(notNode1.getInputPins().getFirst());
-        graph.addEdge(edge2);
 
         graph.queueEvent(notNode1.getOutputPins().getFirst(), 0, Pin.PinState.HIGH);
 
