@@ -18,7 +18,7 @@ public abstract class Node {
     private final List<Pin> outputPins;
 
     private int x, y;
-    private int width = 2, height = 1;
+    private int width = 4, height = 1;
 
     public Node(String nodeTypeName) {
         this.id = UUID.randomUUID();
@@ -33,14 +33,30 @@ public abstract class Node {
      */
     public abstract void update(Graph graph);
 
-    public void draw(ImDrawList drawList, float offsetX, float offsetY, float zoom) {
+    protected void setupPins(int inputsCount, int outputsCount) {
+        for (int i = 0; i < inputsCount; i++) {
+            inputPins.add(new Pin(this, Pin.PinType.INPUT, i));
+        }
+        for (int i = 0; i < outputsCount; i++) {
+            outputPins.add(new Pin(this, Pin.PinType.OUTPUT, i));
+        }
+
+        // DYNAMISCHE HÖHENBERECHNUNG:
+        // Jeder Pin braucht 1 Box Platz. Wir addieren 1 Box als Puffer für den unteren Rand.
+        int maxPins = Math.max(inputsCount, outputsCount);
+        this.height = Math.max(1, maxPins);
+    }
+
+    public void draw(ImDrawList drawList, float offsetX, float offsetY, float zoom, boolean selected) {
         float worldX = this.x * Renderer.GRID_SPACING;
         float worldY = this.y * Renderer.GRID_SPACING;
         float worldWidth = this.width * Renderer.GRID_SPACING;
         float worldHeight = this.height * Renderer.GRID_SPACING;
 
+        float visualWorldY = worldY + (0.5f * Renderer.GRID_SPACING);
+
         float screenX = (worldX + offsetX) * zoom;
-        float screenY = (worldY + offsetY) * zoom;
+        float screenY = (visualWorldY + offsetY) * zoom;
 
         float scaledWidth = worldWidth * zoom;
         float scaledHeight = worldHeight * zoom;
@@ -50,15 +66,26 @@ public abstract class Node {
         float pMaxX = screenX + scaledWidth;
         float pMaxY = screenY + scaledHeight;
 
-        int fillColor = getColorFromType(nodeTypeName);
         int hash = this.nodeTypeName.hashCode();
         float hue = Math.abs(hash % 360) / 360.0f;
-        float[] borderRgb = hslToRgb(hue, 0.65f, 0.35f);
+        float saturation = 0.65f;
+
+        // Basis-Helligkeit für normale Nodes, höhere Helligkeit für selektierte Nodes
+        float fillLightness = selected ? 0.60f : 0.45f;
+        float borderLightness = selected ? 0.40f : 0.25f;
+
+        // HSL zu RGB konvertieren
+        float[] fillRgb = hslToRgb(hue, saturation, fillLightness);
+        float[] borderRgb = hslToRgb(hue, saturation, borderLightness);
+
+        int fillColor = ImGui.getColorU32(fillRgb[0], fillRgb[1], fillRgb[2], 1.0f);
         int borderColor = ImGui.getColorU32(borderRgb[0], borderRgb[1], borderRgb[2], 1.0f);
 
-        float scaledRounding = 7.5f * zoom;
-        float scaledThickness = 1.5f * zoom;
+        float baseThickness = selected ? 3.5f : 2.0f;
+        float scaledRounding = 12.0f * zoom;
+        float scaledThickness = baseThickness * zoom;
 
+        // 4. Zeichnen des ausgefüllten Rechtecks samt Rahmen
         drawList.addRectFilled(pMinX, pMinY, pMaxX, pMaxY, fillColor, scaledRounding, ImDrawFlags.None);
         drawList.addRect(pMinX, pMinY, pMaxX, pMaxY, borderColor, scaledRounding, ImDrawFlags.None, scaledThickness);
 
@@ -78,6 +105,9 @@ public abstract class Node {
         int textColor = ImGui.getColorU32(1.0f, 1.0f, 1.0f, 1.0f);
 
         drawList.addText(currentFont, (int) scaledFontSize, textX, textY, textColor, this.nodeTypeName, null);
+
+        inputPins.forEach(pin -> pin.draw(drawList, offsetX, offsetY, zoom));
+        outputPins.forEach(pin -> pin.draw(drawList, offsetX, offsetY, zoom));
     }
 
     private int getColorFromType(String typeName) {
@@ -126,6 +156,30 @@ public abstract class Node {
     public void addPos(int x, int y) {
         this.x += x;
         this.y += y;
+    }
+
+    public int getX() {
+        return x;
+    }
+
+    public int getY() {
+        return y;
+    }
+
+    public int getWidth() {
+        return width;
+    }
+
+    public int getHeight() {
+        return height;
+    }
+
+    public void setX(int x) {
+        this.x = x;
+    }
+
+    public void setY(int y) {
+        this.y = y;
     }
 
     public UUID getId() {

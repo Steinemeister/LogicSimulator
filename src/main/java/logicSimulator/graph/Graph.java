@@ -80,6 +80,28 @@ public class Graph {
         return nodes;
     }
 
+    public List<Node> getNodesInside(float minX, float minY, float maxX, float maxY) {
+        List<Node> result = new ArrayList<>();
+
+        for (Node node : nodes.values()) {
+            // X-Achse bleibt unverändert auf dem Integer-Grid
+            float nodeMinX = node.getX();
+            float nodeMaxX = node.getX() + node.getWidth();
+
+            // KORREKTUR Y-Achse: Verschiebung um +0.5f für die visuelle Box einrechnen
+            float nodeMinY = node.getY() + 0.5f;
+            float nodeMaxY = node.getY() + node.getHeight() + 0.5f;
+
+            // Überprüfe, ob sich die Auswahlbox mit der verschobenen Node-Box überschneidet
+            if (nodeMinX < maxX && nodeMaxX > minX &&
+                    nodeMinY < maxY && nodeMaxY > minY) {
+                result.add(node);
+            }
+        }
+
+        return result;
+    }
+
     public Map<UUID, Edge> getEdges() {
         return edges;
     }
